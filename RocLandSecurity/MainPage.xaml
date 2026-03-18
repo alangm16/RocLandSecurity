@@ -18,122 +18,127 @@
         </ResourceDictionary>
     </ContentPage.Resources>
 
-    <ScrollView>
-        <VerticalStackLayout Padding="24,60,24,40" Spacing="0">
+    <!--
+        Grid raíz de DOS capas:
+        Capa 0  ScrollLogin  pantalla de credenciales normal
+        Capa 1  PanelQR      escáner a pantalla completa, se superpone encima
+    -->
+    <Grid>
 
-            <!-- LOGO -->
-            <Border BackgroundColor="Transparent"
-                    StrokeThickness="0"
-                    HeightRequest="110"
-                    WidthRequest="110"
-                    HorizontalOptions="Center"
-                    Margin="0,0,0,12">
-                <Border.StrokeShape>
-                    <RoundRectangle CornerRadius="20"/>
-                </Border.StrokeShape>
-                <Image Source="logo_rocland.png"
-                       HeightRequest="110"
-                       WidthRequest="110"
-                       Aspect="AspectFit"
-                       BackgroundColor="Transparent"
+        <!-- Toast flotante -->
+        <Frame x:Name="ToastFrame"
+       BackgroundColor="#FF5555"
+       CornerRadius="12"
+       Padding="12,8"
+       IsVisible="False"
+       HorizontalOptions="Center"
+       VerticalOptions="Start"
+       Margin="24,40,24,0"
+       HasShadow="True"
+       Opacity="0">
+            <Label x:Name="ToastLabel"
+           TextColor="White"
+           FontAttributes="Bold"
+           FontSize="14"
+           HorizontalOptions="Center"/>
+        </Frame>
+
+        <!-- ═══════════════════════════════════════════════════ -->
+        <!-- CAPA 0  LOGIN / CREDENCIALES                        -->
+        <!-- ═══════════════════════════════════════════════════ -->
+        <ScrollView x:Name="ScrollLogin">
+            <VerticalStackLayout Padding="24,60,24,40" Spacing="0">
+
+                <!-- LOGO -->
+                <Border BackgroundColor="Transparent"
+                        StrokeThickness="0"
+                        HeightRequest="110" WidthRequest="110"
+                        HorizontalOptions="Center"
+                        Margin="0,0,0,12">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="20"/>
+                    </Border.StrokeShape>
+                    <Image Source="logo_rocland.png"
+                           HeightRequest="110" WidthRequest="110"
+                           Aspect="AspectFit"
+                           BackgroundColor="Transparent"
+                           HorizontalOptions="Center"
+                           VerticalOptions="Center"/>
+                </Border>
+
+                <!-- TÍTULO -->
+                <Label Text="ROCLAND SECURITY"
+                       TextColor="{StaticResource TextPrimary}"
+                       FontSize="24" FontAttributes="Bold"
                        HorizontalOptions="Center"
-                       VerticalOptions="Center"/>
-            </Border>
+                       Margin="0,0,0,4"/>
 
-            <!-- TÍTULO -->
-            <Label Text="ROCLAND SECURITY"
-                   TextColor="{StaticResource TextPrimary}"
-                   FontSize="24"
-                   FontAttributes="Bold"
-                   HorizontalOptions="Center"
-                   Margin="0,0,0,4"/>
+                <!-- SUBTÍTULO -->
+                <Label Text="Gestión de Inspecciones Perímetrales"
+                       TextColor="{StaticResource TextSecondary}"
+                       FontSize="13"
+                       HorizontalOptions="Center"
+                       Margin="0,0,0,28"/>
 
-            <!-- SUBTÍTULO -->
-            <Label Text="Gestión de Inspecciones Perímetrales"
-                   TextColor="{StaticResource TextSecondary}"
-                   FontSize="13"
-                   HorizontalOptions="Center"
-                   Margin="0,0,0,28"/>
-
-            <!-- TABS -->
-            <Border BackgroundColor="{StaticResource TabInactive}"
-                    StrokeThickness="1"
-                    Stroke="{StaticResource BorderColor}"
-                    Padding="4"
-                    Margin="0,0,0,24">
-                <Border.StrokeShape>
-                    <RoundRectangle CornerRadius="14"/>
-                </Border.StrokeShape>
-                <Grid ColumnDefinitions="*,*" ColumnSpacing="0">
-                    <!-- Tab Credenciales -->
-                    <Border x:Name="TabCredencialesIndicator"
-                            Grid.Column="0"
-                            BackgroundColor="{StaticResource AccentGreen}"
-                            StrokeThickness="0"
-                            Padding="0">
-                        <Border.StrokeShape>
-                            <RoundRectangle CornerRadius="10"/>
-                        </Border.StrokeShape>
-                        <Button x:Name="BtnTabCredenciales"
-                                Text="  Credenciales"
-                                TextColor="#111111"
-                                FontAttributes="Bold"
-                                FontSize="14"
+                <!-- TABS -->
+                <Border BackgroundColor="{StaticResource TabInactive}"
+                        StrokeThickness="1" Stroke="{StaticResource BorderColor}"
+                        Padding="4" Margin="0,0,0,24">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="14"/>
+                    </Border.StrokeShape>
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="0">
+                        <Border x:Name="TabCredencialesIndicator"
+                                Grid.Column="0"
+                                BackgroundColor="{StaticResource AccentGreen}"
+                                StrokeThickness="0" Padding="0">
+                            <Border.StrokeShape>
+                                <RoundRectangle CornerRadius="10"/>
+                            </Border.StrokeShape>
+                            <Button x:Name="BtnTabCredenciales"
+                                    Text="  Credenciales"
+                                    TextColor="#111111" FontAttributes="Bold"
+                                    FontSize="14" BackgroundColor="Transparent"
+                                    HeightRequest="42"
+                                    Clicked="OnTabCredencialesClicked"/>
+                        </Border>
+                        <Border x:Name="TabQRIndicator"
+                                Grid.Column="1"
                                 BackgroundColor="Transparent"
-                                HeightRequest="42"
-                                Clicked="OnTabCredencialesClicked"/>
-                    </Border>
-                    <!-- Tab QR -->
-                    <Border x:Name="TabQRIndicator"
-                            Grid.Column="1"
-                            BackgroundColor="Transparent"
-                            StrokeThickness="0"
-                            Padding="0">
-                        <Border.StrokeShape>
-                            <RoundRectangle CornerRadius="10"/>
-                        </Border.StrokeShape>
-                        <Button x:Name="BtnTabQR"
-                                Text="  Código QR"
-                                TextColor="{StaticResource TextSecondary}"
-                                FontSize="14"
-                                BackgroundColor="Transparent"
-                                HeightRequest="42"
-                                Clicked="OnTabQRClicked"/>
-                    </Border>
-                </Grid>
-            </Border>
-
-            <!-- ================================ -->
-            <!-- PANEL CREDENCIALES               -->
-            <!-- ================================ -->
-            <VerticalStackLayout x:Name="PanelCredenciales" Spacing="0" IsVisible="True">
+                                StrokeThickness="0" Padding="0">
+                            <Border.StrokeShape>
+                                <RoundRectangle CornerRadius="10"/>
+                            </Border.StrokeShape>
+                            <Button x:Name="BtnTabQR"
+                                    Text="  Código QR"
+                                    TextColor="{StaticResource TextSecondary}"
+                                    FontSize="14" BackgroundColor="Transparent"
+                                    HeightRequest="42"
+                                    Clicked="OnTabQRClicked"/>
+                        </Border>
+                    </Grid>
+                </Border>
 
                 <!-- CAMPO USUARIO -->
                 <Label Text="Usuario"
                        TextColor="{StaticResource TextSecondary}"
-                       FontSize="13"
-                       Margin="0,0,0,6"/>
+                       FontSize="13" Margin="0,0,0,6"/>
                 <Border BackgroundColor="{StaticResource InputBackground}"
-                        StrokeThickness="1"
-                        Stroke="{StaticResource BorderColor}"
-                        Padding="14,0"
-                        Margin="0,0,0,16">
+                        StrokeThickness="1" Stroke="{StaticResource BorderColor}"
+                        Padding="14,0" Margin="0,0,0,16">
                     <Border.StrokeShape>
                         <RoundRectangle CornerRadius="12"/>
                     </Border.StrokeShape>
                     <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
-                        <Image Grid.Column="0"
-                               Source="user.png"
+                        <Image Grid.Column="0" Source="user.png"
                                WidthRequest="18" HeightRequest="18"
                                VerticalOptions="Center"/>
-                        <Entry x:Name="UsuarioEntry"
-                               Grid.Column="1"
+                        <Entry x:Name="UsuarioEntry" Grid.Column="1"
                                Placeholder="Ingresa tu usuario"
                                PlaceholderColor="{StaticResource TextPlaceholder}"
                                TextColor="{StaticResource TextPrimary}"
                                BackgroundColor="Transparent"
-                               FontSize="15"
-                               HeightRequest="50"
+                               FontSize="15" HeightRequest="50"
                                ReturnType="Next"/>
                     </Grid>
                 </Border>
@@ -141,31 +146,24 @@
                 <!-- CAMPO CONTRASEÑA -->
                 <Label Text="Contraseña"
                        TextColor="{StaticResource TextSecondary}"
-                       FontSize="13"
-                       Margin="0,0,0,6"/>
+                       FontSize="13" Margin="0,0,0,6"/>
                 <Border BackgroundColor="{StaticResource InputBackground}"
-                        StrokeThickness="1"
-                        Stroke="{StaticResource BorderColor}"
-                        Padding="14,0"
-                        Margin="0,0,0,28">
+                        StrokeThickness="1" Stroke="{StaticResource BorderColor}"
+                        Padding="14,0" Margin="0,0,0,28">
                     <Border.StrokeShape>
                         <RoundRectangle CornerRadius="12"/>
                     </Border.StrokeShape>
                     <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
-                        <Image Grid.Column="0"
-                               Source="lock.png"
+                        <Image Grid.Column="0" Source="lock.png"
                                WidthRequest="18" HeightRequest="18"
                                VerticalOptions="Center"/>
-                        <Entry x:Name="ContrasenaEntry"
-                               Grid.Column="1"
+                        <Entry x:Name="ContrasenaEntry" Grid.Column="1"
                                Placeholder="Ingresa tu contraseña"
                                PlaceholderColor="{StaticResource TextPlaceholder}"
                                TextColor="{StaticResource TextPrimary}"
                                BackgroundColor="Transparent"
-                               FontSize="15"
-                               HeightRequest="50"
-                               IsPassword="True"
-                               ReturnType="Done"/>
+                               FontSize="15" HeightRequest="50"
+                               IsPassword="True" ReturnType="Done"/>
                     </Grid>
                 </Border>
 
@@ -173,72 +171,158 @@
                 <Button x:Name="BtnIngresar"
                         Text="Ingresar"
                         BackgroundColor="{StaticResource AccentGreen}"
-                        TextColor="#111111"
-                        FontAttributes="Bold"
-                        FontSize="16"
-                        CornerRadius="12"
+                        TextColor="#111111" FontAttributes="Bold"
+                        FontSize="16" CornerRadius="12"
                         HeightRequest="54"
                         Clicked="OnLoginClicked"/>
 
+                <!-- MENSAJE DE ERROR credenciales -->
+                <Label x:Name="ErrorLabel"
+                       Text="" TextColor="#FF5555"
+                       FontSize="13" HorizontalOptions="Center"
+                       IsVisible="False" Margin="0,16,0,0"/>
+
+            </VerticalStackLayout>
+        </ScrollView>
+
+        <!-- ═══════════════════════════════════════════════════ -->
+        <!-- CAPA 1  ESCÁNER QR (pantalla completa, encima)      -->
+        <!-- ═══════════════════════════════════════════════════ -->
+        <Grid x:Name="PanelQR"
+              IsVisible="False"
+              BackgroundColor="Transparent">
+
+            <zxing:CameraBarcodeReaderView
+                x:Name="QrScanner"
+                IsDetecting="False"
+                BarcodesDetected="OnQrDetected"
+                HorizontalOptions="Fill"
+                VerticalOptions="Fill" />
+
+            <!-- OVERLAY: banda superior oscura -->
+            <BoxView Color="#D0111111"
+                     VerticalOptions="Start"
+                     HeightRequest="170"
+                     HorizontalOptions="Fill"/>
+
+            <!-- OVERLAY: banda inferior oscura -->
+            <BoxView Color="#D0111111"
+                     VerticalOptions="End"
+                     HeightRequest="210"
+                     HorizontalOptions="Fill"/>
+
+            <!-- OVERLAY: bandas laterales a la altura del visor (260px) -->
+            <Grid VerticalOptions="Center" HeightRequest="260" HorizontalOptions="Fill">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="260"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+            </Grid>
+
+            <!-- VISOR: esquinas verdes decorativas -->
+            <Grid VerticalOptions="Center"
+                  HorizontalOptions="Center"
+                  WidthRequest="260" HeightRequest="260">
+
+                <!-- Esquina superior-izquierda -->
+                <BoxView Color="{StaticResource AccentGreen}"
+                         WidthRequest="40" HeightRequest="4"
+                         HorizontalOptions="Start" VerticalOptions="Start"/>
+                <BoxView Color="{StaticResource AccentGreen}"
+                         WidthRequest="4" HeightRequest="40"
+                         HorizontalOptions="Start" VerticalOptions="Start"/>
+                <!-- Esquina superior-derecha -->
+                <BoxView Color="{StaticResource AccentGreen}"
+                         WidthRequest="40" HeightRequest="4"
+                         HorizontalOptions="End" VerticalOptions="Start"/>
+                <BoxView Color="{StaticResource AccentGreen}"
+                         WidthRequest="4" HeightRequest="40"
+                         HorizontalOptions="End" VerticalOptions="Start"/>
+                <!-- Esquina inferior-izquierda -->
+                <BoxView Color="{StaticResource AccentGreen}"
+                         WidthRequest="40" HeightRequest="4"
+                         HorizontalOptions="Start" VerticalOptions="End"/>
+                <BoxView Color="{StaticResource AccentGreen}"
+                         WidthRequest="4" HeightRequest="40"
+                         HorizontalOptions="Start" VerticalOptions="End"/>
+                <!-- Esquina inferior-derecha -->
+                <BoxView Color="{StaticResource AccentGreen}"
+                         WidthRequest="40" HeightRequest="4"
+                         HorizontalOptions="End" VerticalOptions="End"/>
+                <BoxView Color="{StaticResource AccentGreen}"
+                         WidthRequest="4" HeightRequest="40"
+                         HorizontalOptions="End" VerticalOptions="End"/>
+            </Grid>
+
+            <!-- CABECERA flotante (sobre banda superior) -->
+            <VerticalStackLayout VerticalOptions="Start"
+                                 HorizontalOptions="Fill"
+                                 Padding="20,48,20,0"
+                                 Spacing="0">
+                
+                <Label Text="ROCLAND SECURITY"
+                       TextColor="{StaticResource TextPrimary}"
+                       FontSize="22" FontAttributes="Bold"
+                       HorizontalOptions="Center"/>
+
+                <Label Text="Escanear credencial QR"
+                       TextColor="{StaticResource AccentGreen}"
+                       FontSize="13"
+                       HorizontalOptions="Center"
+                       Margin="0,6,0,0"/>
             </VerticalStackLayout>
 
-            <!-- ================================ -->
-            <!-- PANEL QR                         -->
-            <!-- ================================ -->
-            <!-- Panel QR simplificado - REEMPLAZA todo el VerticalStackLayout del PanelQR -->
-            <VerticalStackLayout x:Name="PanelQR" Spacing="0" IsVisible="False">
+            <VerticalStackLayout
+                VerticalOptions="Center"
+                HorizontalOptions="Center"
+                Margin="0,450,0,0"  
+                            Spacing="10"
+                ZIndex="20">
 
-                <!-- Escáner directo sin Border -->
-                <Grid HeightRequest="300"
-                          WidthRequest="300"
-                          HorizontalOptions="Center"
-                          Margin="0,0,0,16">
+                            <Button
+                    Text="Volver"
+                    FontSize="16"
+                    FontAttributes="Bold"
+                    TextColor="White"
+                    BackgroundColor="{StaticResource AccentGreen}"
+                    CornerRadius="24"
+                    Padding="16,8"
+                    WidthRequest="140"
+                    HeightRequest="48"
+                    Clicked="OnTabCredencialesClicked"/>
+            </VerticalStackLayout>
 
-                        <zxing:CameraBarcodeReaderView
-                            x:Name="QrScanner"
-                            IsDetecting="False"
-                            BarcodesDetected="OnQrDetected"
-                            HorizontalOptions="Fill"
-                            VerticalOptions="Fill">
-                        </zxing:CameraBarcodeReaderView>
+            <!-- PIE flotante (sobre banda inferior) -->
+            <VerticalStackLayout VerticalOptions="End"
+                                 HorizontalOptions="Fill"
+                                 Padding="24,0,24,52"
+                                 Spacing="10">
 
-                        <!-- Overlay simple -->
-                        <Rectangle Fill="Transparent"
-                       Stroke="{StaticResource AccentGreen}"
-                       StrokeThickness="2"
-                       WidthRequest="180"
-                       HeightRequest="180"
+                <Label Text="Apunta la cámara al código QR de tu credencial"
+                       TextColor="{StaticResource TextSecondary}"
+                       FontSize="13"
                        HorizontalOptions="Center"
-                       VerticalOptions="Center" />
-                    </Grid>
-
-                    <Label Text="Apunta la cámara al código QR de tu credencial"
-               TextColor="{StaticResource TextSecondary}"
-               FontSize="13"
-               HorizontalOptions="Center"
-               HorizontalTextAlignment="Center"
-               Margin="0,0,0,16"/>
+                       HorizontalTextAlignment="Center"/>
 
                 <Label x:Name="QrStatusLabel"
-               Text=""
-               TextColor="{StaticResource AccentGreen}"
-               FontSize="14"
-               FontAttributes="Bold"
-               HorizontalOptions="Center"
-               IsVisible="False"
-               Margin="0,0,0,8"/>
+                       Text=""
+                       TextColor="{StaticResource AccentGreen}"
+                       FontSize="15" FontAttributes="Bold"
+                       HorizontalOptions="Center"
+                       IsVisible="False"/>
+
+                <Label x:Name="QrErrorLabel"
+                       Text=""
+                       TextColor="#FF5555"
+                       FontSize="13"
+                       HorizontalOptions="Center"
+                       IsVisible="False"/>
+
             </VerticalStackLayout>
 
-            <!-- MENSAJE DE ERROR (compartido ambos tabs) -->
-            <Label x:Name="ErrorLabel"
-                   Text=""
-                   TextColor="#FF5555"
-                   FontSize="13"
-                   HorizontalOptions="Center"
-                   IsVisible="False"
-                   Margin="0,16,0,0"/>
+        </Grid>
 
-        </VerticalStackLayout>
-    </ScrollView>
+    </Grid>
 
 </ContentPage>
