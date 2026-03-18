@@ -5,13 +5,15 @@ namespace RocLandSecurity
 {
     public partial class MainPage : ContentPage
     {
-        private readonly DatabaseService db;
+        private readonly DatabaseService _db;
+        private readonly SessionService _session;
         private bool _qrProcesando = false;
 
-        public MainPage(DatabaseService databaseService)
+        public MainPage(DatabaseService databaseService, SessionService sessionService)
         {
             InitializeComponent();
-            db = databaseService;
+            _db = databaseService;
+            _session = sessionService;
 
             OnTabCredencialesClicked(null, null);
         }
@@ -20,23 +22,20 @@ namespace RocLandSecurity
         // TABS
         // ─────────────────────────────────────────────
 
-        private void OnTabCredencialesClicked(object sender, EventArgs e)
+        private void OnTabCredencialesClicked(object? sender, EventArgs? e)
         {
             QrScanner.IsDetecting = false;
             _qrProcesando = false;
 
-            // Mostrar login, ocultar QR
             ScrollLogin.IsVisible = true;
             PanelQR.IsVisible = false;
 
-            // Estilos tabs activo/inactivo
             TabCredencialesIndicator.BackgroundColor = Color.FromArgb("#6DBF2E");
             BtnTabCredenciales.TextColor = Color.FromArgb("#111111");
             BtnTabCredenciales.FontAttributes = FontAttributes.Bold;
             TabQRIndicator.BackgroundColor = Colors.Transparent;
             BtnTabQR.TextColor = Color.FromArgb("#888888");
             BtnTabQR.FontAttributes = FontAttributes.None;
-
         }
 
         private async void OnTabQRClicked(object sender, EventArgs e)
@@ -84,7 +83,7 @@ namespace RocLandSecurity
             try
             {
                 string hash = HashSHA256(contrasena);
-                var user = await db.GetUsuarioByLoginAsync(usuario, hash);
+                var user = await _db.GetUsuarioByLoginAsync(usuario, hash);
 
                 if (user == null)
                 {
@@ -98,11 +97,12 @@ namespace RocLandSecurity
                     return;
                 }
 
-                await MostrarBienvenida(user.Nombre, user.Rol);
+                _session.IniciarSesion(user);
+                await NavegerPorRol();
             }
             catch (Exception)
             {
-                await ShowToastAsync("Error de conexión");
+                await ShowToastAsync("Error de conexión. Verifica la red.");
             }
             finally
             {
@@ -112,7 +112,7 @@ namespace RocLandSecurity
         }
 
         // ─────────────────────────────────────────────
-        // LOGIN POR QR (automático al detectar)
+        // LOGIN POR QR
         // ─────────────────────────────────────────────
 
         private async void OnQrDetected(object sender, BarcodeDetectionEventArgs e)
@@ -137,7 +137,7 @@ namespace RocLandSecurity
 
                 try
                 {
-                    var user = await db.GetUsuarioByQRAsync(codigoQR);
+                    var user = await _db.GetUsuarioByQRAsync(codigoQR);
 
                     if (user == null)
                     {
@@ -160,7 +160,9 @@ namespace RocLandSecurity
                     }
 
                     QrStatusLabel.Text = $"¡Bienvenido, {user.Nombre}!";
-                    await MostrarBienvenida(user.Nombre, user.Rol);
+                    _session.IniciarSesion(user);
+                    await Task.Delay(600); // pequeña pausa para ver el mensaje
+                    await NavegerPorRol();
                 }
                 catch (Exception)
                 {
@@ -174,15 +176,28 @@ namespace RocLandSecurity
         }
 
         // ─────────────────────────────────────────────
-        // HELPERS
+        // NAVEGACIÓN POR ROL
         // ─────────────────────────────────────────────
 
-        private async Task MostrarBienvenida(string nombre, int rol)
+        private Task NavegerPorRol()
         {
-            string rolTexto = rol == 1 ? "Supervisor" : "Guardia";
-            await ShowToastAsync($"Bienvenido {nombre} ({rolTexto})");
-            // Aquí después: await Shell.Current.GoToAsync("//HomePage");
+            // Limpiar campos del formulario
+            UsuarioEntry.Text = string.Empty;
+            ContrasenaEntry.Text = string.Empty;
+
+            var shell = Shell.Current as AppShell;
+
+            if (_session.EsSupervisor)
+                shell?.MostrarTabBarSupervisor();
+            else
+                shell?.MostrarTabBarGuardia();
+
+            return Task.CompletedTask;
         }
+
+        // ─────────────────────────────────────────────
+        // HELPERS
+        // ─────────────────────────────────────────────
 
         private static string HashSHA256(string input)
         {
@@ -195,12 +210,11 @@ namespace RocLandSecurity
 
         public async Task ShowToastAsync(string message, ToastType type = ToastType.Error, int duration = 2000)
         {
-            // Definir color según tipo
             Color bgColor = type switch
             {
-                ToastType.Success => Color.FromArgb("#6DBF2E"), // verde
-                ToastType.Warning => Color.FromArgb("#FFA500"), // naranja
-                _ => Color.FromArgb("#FF5555") // rojo por defecto
+                ToastType.Success => Color.FromArgb("#6DBF2E"),
+                ToastType.Warning => Color.FromArgb("#FFA500"),
+                _ => Color.FromArgb("#FF5555")
             };
 
             ToastLabel.Text = message;
@@ -208,16 +222,10 @@ namespace RocLandSecurity
             ToastFrame.IsVisible = true;
             ToastFrame.Opacity = 0;
 
-            // Fade in
             await ToastFrame.FadeTo(1, 250);
-
-            // Mantener visible
             await Task.Delay(duration);
-
-            // Fade out
             await ToastFrame.FadeTo(0, 250);
             ToastFrame.IsVisible = false;
         }
-
     }
 }

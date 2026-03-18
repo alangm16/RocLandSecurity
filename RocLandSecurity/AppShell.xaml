@@ -4,11 +4,117 @@
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:local="clr-namespace:RocLandSecurity"
-    Title="RocLandSecurity">
+    xmlns:guardia="clr-namespace:RocLandSecurity.Views.Guardia"
+    xmlns:supervisor="clr-namespace:RocLandSecurity.Views.Supervisor"
+    Shell.NavBarIsVisible="False"
+    Shell.TabBarIsVisible="False"
+    Title="RocLand Security">
 
+    <Shell.Resources>
+        <Style TargetType="TabBar">
+            <Setter Property="Shell.TabBarBackgroundColor" Value="#111111"/>
+            <Setter Property="Shell.TabBarForegroundColor" Value="#6DBF2E"/>
+            <Setter Property="Shell.TabBarUnselectedColor" Value="#555555"/>
+            <Setter Property="Shell.TabBarTitleColor"      Value="#6DBF2E"/>
+        </Style>
+    </Shell.Resources>
+
+    <!-- ══════════════════════════════════════════════════════════════
+         RUTA LOGIN — Sin TabBar, sin NavBar
+         Siempre disponible como punto de entrada y para el logout
+    ══════════════════════════════════════════════════════════════ -->
     <ShellContent
-        Title="Home"
+        x:Name="LoginContent"
+        Title="Login"
+        Route="login"
         ContentTemplate="{DataTemplate local:MainPage}"
-        Route="MainPage" />
+        Shell.NavBarIsVisible="False"
+        Shell.TabBarIsVisible="False"/>
+
+    <!-- ══════════════════════════════════════════════════════════════
+         TAB BAR — GUARDIA
+         Se activa desde AppShell.xaml.cs al hacer login como guardia
+    ══════════════════════════════════════════════════════════════ -->
+    <TabBar x:Name="TabBarGuardia" IsVisible="False" Route="guardia">
+
+        <Tab Title="Rondines" Icon="tab_rondin.png" Route="home">
+            <ShellContent
+                Title="Rondines"
+                Route="guardiahome"
+                ContentTemplate="{DataTemplate guardia:GuardiaHomePage}"
+                Shell.NavBarIsVisible="False"/>
+        </Tab>
+
+        <Tab Title="Historial" Icon="tab_historial.png" Route="historial">
+            <ShellContent
+                Title="Historial"
+                Route="guardiahistorial"
+                ContentTemplate="{DataTemplate guardia:GuardiaHomePage}"
+                Shell.NavBarIsVisible="False"/>
+            <!-- Reemplazar DataTemplate por HistorialGuardiaPage en Sprint 5 -->
+        </Tab>
+
+        <Tab Title="Incidencias" Icon="tab_incidencia.png" Route="incidencias">
+            <ShellContent
+                Title="Incidencias"
+                Route="guardiaincidencias"
+                ContentTemplate="{DataTemplate guardia:GuardiaHomePage}"
+                Shell.NavBarIsVisible="False"/>
+            <!-- Reemplazar DataTemplate por ReportarIncidenciaPage en Sprint 4 -->
+        </Tab>
+
+        <Tab Title="Perfil" Icon="tab_perfil.png" Route="perfil">
+            <ShellContent
+                Title="Perfil"
+                Route="guardiaperfil"
+                ContentTemplate="{DataTemplate guardia:GuardiaHomePage}"
+                Shell.NavBarIsVisible="False"/>
+            <!-- Reemplazar DataTemplate por PerfilPage en Sprint 6 -->
+        </Tab>
+
+    </TabBar>
+
+    <!-- ══════════════════════════════════════════════════════════════
+         TAB BAR — SUPERVISOR
+         Se activa desde AppShell.xaml.cs al hacer login como supervisor
+    ══════════════════════════════════════════════════════════════ -->
+    <TabBar x:Name="TabBarSupervisor" IsVisible="False" Route="supervisor">
+
+        <Tab Title="Panel" Icon="tab_panel.png" Route="panel">
+            <ShellContent
+                Title="Panel"
+                Route="supervisorhome"
+                ContentTemplate="{DataTemplate supervisor:SupervisorHomePage}"
+                Shell.NavBarIsVisible="False"/>
+        </Tab>
+
+        <Tab Title="Incidencias" Icon="tab_incidencia.png" Route="incidencias">
+            <ShellContent
+                Title="Incidencias"
+                Route="supervisorincidencias"
+                ContentTemplate="{DataTemplate supervisor:SupervisorHomePage}"
+                Shell.NavBarIsVisible="False"/>
+            <!-- Reemplazar DataTemplate por IncidenciasPage en Sprint 4 -->
+        </Tab>
+
+        <Tab Title="Historial" Icon="tab_historial.png" Route="historial">
+            <ShellContent
+                Title="Historial"
+                Route="supervisorhistorial"
+                ContentTemplate="{DataTemplate supervisor:SupervisorHomePage}"
+                Shell.NavBarIsVisible="False"/>
+            <!-- Reemplazar DataTemplate por HistorialPage en Sprint 5 -->
+        </Tab>
+
+        <Tab Title="Perfil" Icon="tab_perfil.png" Route="perfil">
+            <ShellContent
+                Title="Perfil"
+                Route="supervisorperfil"
+                ContentTemplate="{DataTemplate supervisor:SupervisorHomePage}"
+                Shell.NavBarIsVisible="False"/>
+            <!-- Reemplazar DataTemplate por PerfilPage en Sprint 6 -->
+        </Tab>
+
+    </TabBar>
 
 </Shell>

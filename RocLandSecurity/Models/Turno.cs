@@ -4,14 +4,14 @@ using System.Text;
 
 namespace RocLandSecurity.Models
 {
-    class Turno
+    public class Turno
     {
         public int ID { get; set; }
-        public DateTime Fecha { get; set; }
-        public TimeSpan HoraInicio { get; set; }
-        public TimeSpan HoraFin { get; set; }
+        public DateOnly Fecha { get; set; }
+        public TimeOnly HoraInicio { get; set; }
+        public TimeOnly HoraFin { get; set; }
         public int GuardiaID { get; set; } 
-        public int SupervisorID { get; set; }
+        public int? SupervisorID { get; set; }
 
         // Propiedades de navegación
         public Usuario Guardia { get; set; }
