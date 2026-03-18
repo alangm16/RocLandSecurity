@@ -1,7 +1,14 @@
-﻿using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using RocLandSecurity.Services;
-using System.Reflection;
+using ZXing.Net.Maui.Controls;
+using ZXing.Net.Maui;
+
+
+#if ANDROID
+using Android.Widget;
+using Android.Graphics;
+using Microsoft.Maui.Handlers;
+#endif
 
 namespace RocLandSecurity
 {
@@ -12,24 +19,40 @@ namespace RocLandSecurity
             var builder = MauiApp.CreateBuilder();
             builder
                 .UseMauiApp<App>()
+                // ← Registra ZXing para el escáner QR
+                .UseBarcodeReader()
+                .ConfigureMauiHandlers(handlers =>
+                {
+#if ANDROID
+                    handlers.AddHandler(typeof(CameraBarcodeReaderView), typeof(CameraBarcodeReaderViewHandler));
+#endif
+                })
                 .ConfigureFonts(fonts =>
                 {
                     fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
                     fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
                 });
 
-            // Cargar AppSettings.json
-            var a = Assembly.GetExecutingAssembly();
-            using var stream = a.GetManifestResourceStream("ROCLAND_Rondines.AppSettings.json");
-            var config = new ConfigurationBuilder()
-                .AddJsonStream(stream)
-                .Build();
+            string connectionString = @"Server=LAPTOP-2U33G2AH\SQLEXPRESS;Database=ROCLAND;User Id=sa;Password=12345678;TrustServerCertificate=True;";
 
-            // Registrar DatabaseService con la cadena de conexión
-            builder.Services.AddSingleton(new DatabaseService(config.GetConnectionString("LocalSqlServer")));
+            builder.Services.AddSingleton(new DatabaseService(connectionString));
+            builder.Services.AddSingleton<MainPage>();
 
-#if DEBUG
-            builder.Logging.AddDebug();
+#if ANDROID
+            ImageHandler.Mapper.AppendToMapping("NoTint_Android", (handler, view) =>
+            {
+                try
+                {
+                    if (handler.PlatformView is ImageView imageView)
+                    {
+                        imageView.ImageTintList = null;
+                        imageView.ClearColorFilter();
+                        var d = imageView.Drawable;
+                        imageView.SetImageDrawable(d);
+                    }
+                }
+                catch { }
+            });
 #endif
 
             return builder.Build();

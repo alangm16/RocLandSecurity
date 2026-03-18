@@ -4,7 +4,7 @@ using System.Text;
 
 namespace RocLandSecurity.Models
 {
-    internal class Usuario
+    public class Usuario
     {
         public int ID { get; set; }
         public string Nombre { get; set; }
