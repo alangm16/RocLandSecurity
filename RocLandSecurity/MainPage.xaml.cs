@@ -9,6 +9,7 @@ namespace RocLandSecurity
         private readonly SessionService _session;
         private readonly IFlashlightService _flashlight;
         private bool _qrProcesando = false;
+        private bool _flashOn = false;
 
         public MainPage(DatabaseService databaseService, SessionService sessionService, IFlashlightService flashlight)
         {
@@ -20,17 +21,43 @@ namespace RocLandSecurity
             OnTabCredencialesClicked(null, null);
         }
 
-        // ─────────────────────────────────────────────
+        public void ResetearVista()
+        {
+            MainThread.BeginInvokeOnMainThread(() =>
+            {
+                if (UsuarioEntry != null) UsuarioEntry.Text = string.Empty;
+                if (ContrasenaEntry != null) ContrasenaEntry.Text = string.Empty;
+
+                if (QrStatusLabel != null)
+                {
+                    QrStatusLabel.Text = string.Empty;
+                    QrStatusLabel.IsVisible = false;
+                }
+
+                if (QrScanner != null) QrScanner.IsDetecting = false;
+                _flashOn = false;
+                UpdateFlashlightIcon(false);
+                _qrProcesando = false;
+
+                if (BtnRefrescar != null)
+                {
+                    BtnRefrescar.BackgroundColor = Color.FromArgb("#333333");
+                    BtnRefrescar.IsEnabled = true;
+                }
+
+                OnTabCredencialesClicked(null, null);
+            });
+        }
+
+        // ─────────────────────────────────────────────────────────────────
         // TABS
-        // ─────────────────────────────────────────────
+        // ─────────────────────────────────────────────────────────────────
 
         private void OnTabCredencialesClicked(object? sender, EventArgs? e)
         {
-            // Apagar linterna al salir del QR
-            if (_flashlight.IsOn)
-                _ = ApagarLinternaAsync();
-
-            QrScanner.IsDetecting = false;
+            // Apagar linterna y scanner si estaban activos
+            if (_flashOn) _ = ApagarLinternaAsync();
+            if (QrScanner != null) QrScanner.IsDetecting = false;
             _qrProcesando = false;
 
             ScrollLogin.IsVisible = true;
@@ -43,7 +70,6 @@ namespace RocLandSecurity
             BtnTabQR.TextColor = Color.FromArgb("#888888");
             BtnTabQR.FontAttributes = FontAttributes.None;
 
-            // Resetear icono de linterna
             UpdateFlashlightIcon(false);
         }
 
@@ -66,31 +92,29 @@ namespace RocLandSecurity
             BtnTabCredenciales.TextColor = Color.FromArgb("#888888");
             BtnTabCredenciales.FontAttributes = FontAttributes.None;
 
+            QrStatusLabel.Text = string.Empty;
             QrStatusLabel.IsVisible = false;
             _qrProcesando = false;
             QrScanner.IsDetecting = true;
 
-            // Verificar disponibilidad de linterna
             if (!await _flashlight.IsAvailableAsync())
             {
                 BtnFlash.IsEnabled = false;
                 BtnFlash.Opacity = 0.5;
             }
+
+            BtnRefrescar.BackgroundColor = Color.FromArgb("#333333");
+            BtnRefrescar.IsEnabled = true;
         }
 
-        // ─────────────────────────────────────────────
+        // ─────────────────────────────────────────────────────────────────
         // LINTERNA
-        // ─────────────────────────────────────────────
-        private bool _flashOn = false;
+        // ─────────────────────────────────────────────────────────────────
+
         private void OnFlashClicked(object sender, EventArgs e)
         {
-            // Cambiar estado
             _flashOn = !_flashOn;
-
-            // Aplicar al scanner
             QrScanner.IsTorchOn = _flashOn;
-
-            // Actualizar icono visual
             UpdateFlashlightIcon(_flashOn);
         }
 
@@ -98,16 +122,11 @@ namespace RocLandSecurity
         {
             MainThread.BeginInvokeOnMainThread(() =>
             {
-                if (isOn)
-                {
-                    BtnFlash.BackgroundColor = Color.FromArgb("#6DBF2E");
-                    BtnFlash.ImageSource = "flash_on.png";
-                }
-                else
-                {
-                    BtnFlash.BackgroundColor = Color.FromArgb("#333333");
-                    BtnFlash.ImageSource = "flash_off.png";
-                }
+                if (BtnFlash == null) return;
+                BtnFlash.BackgroundColor = isOn
+                    ? Color.FromArgb("#6DBF2E")
+                    : Color.FromArgb("#333333");
+                BtnFlash.ImageSource = isOn ? "flash_on.png" : "flash_off.png";
             });
         }
 
@@ -115,15 +134,17 @@ namespace RocLandSecurity
         {
             try
             {
+                _flashOn = false;
+                QrScanner.IsTorchOn = false;
                 await _flashlight.TurnOffAsync();
                 UpdateFlashlightIcon(false);
             }
             catch { }
         }
 
-        // ─────────────────────────────────────────────
+        // ─────────────────────────────────────────────────────────────────
         // LOGIN POR CREDENCIALES
-        // ─────────────────────────────────────────────
+        // ─────────────────────────────────────────────────────────────────
 
         private async void OnLoginClicked(object sender, EventArgs e)
         {
@@ -170,9 +191,59 @@ namespace RocLandSecurity
             }
         }
 
-        // ─────────────────────────────────────────────
+        // ─────────────────────────────────────────────────────────────────
         // LOGIN POR QR
-        // ─────────────────────────────────────────────
+        // ─────────────────────────────────────────────────────────────────
+
+        private async void OnRefrescarClicked(object sender, EventArgs e)
+        {
+            try
+            {
+                BtnRefrescar.BackgroundColor = Color.FromArgb("#6DBF2E");
+                BtnRefrescar.IsEnabled = false;
+
+                QrStatusLabel.Text = "Reiniciando cámara...";
+                QrStatusLabel.IsVisible = true;
+                QrStatusLabel.TextColor = Color.FromArgb("#6DBF2E");
+
+                QrScanner.IsDetecting = false;
+
+                await Task.Delay(500);
+
+                bool flashEstabaEncendido = _flashOn;
+
+                if (flashEstabaEncendido)
+                {
+                    QrScanner.IsTorchOn = false;
+                    await Task.Delay(100);
+                }
+
+                QrScanner.IsDetecting = true;
+
+                if (flashEstabaEncendido)
+                {
+                    await Task.Delay(200);
+                    QrScanner.IsTorchOn = true;
+                }
+
+                QrStatusLabel.Text = "Cámara reiniciada";
+                await Task.Delay(800);
+
+                if (!_qrProcesando)
+                {
+                    QrStatusLabel.IsVisible = false;
+                }
+            }
+            catch (Exception ex)
+            {
+                await ShowToastAsync("Error al reiniciar cámara");
+            }
+            finally
+            {
+                BtnRefrescar.BackgroundColor = Color.FromArgb("#333333");
+                BtnRefrescar.IsEnabled = true;
+            }
+        }
 
         private async void OnQrDetected(object sender, BarcodeDetectionEventArgs e)
         {
@@ -219,12 +290,15 @@ namespace RocLandSecurity
                     }
 
                     QrStatusLabel.Text = $"¡Bienvenido, {user.Nombre}!";
+                    QrStatusLabel.IsVisible = true;
+
                     _session.IniciarSesion(user);
-
-                    // Apagar linterna antes de navegar
                     await ApagarLinternaAsync();
-
                     await Task.Delay(600);
+
+                    QrStatusLabel.Text = string.Empty;
+                    QrStatusLabel.IsVisible = false;
+
                     await NavegerPorRol();
                 }
                 catch (Exception)
@@ -238,9 +312,9 @@ namespace RocLandSecurity
             });
         }
 
-        // ─────────────────────────────────────────────
+        // ─────────────────────────────────────────────────────────────────
         // NAVEGACIÓN POR ROL
-        // ─────────────────────────────────────────────
+        // ─────────────────────────────────────────────────────────────────
 
         private async Task NavegerPorRol()
         {
@@ -255,9 +329,9 @@ namespace RocLandSecurity
                 await (shell?.MostrarTabBarGuardiaAsync() ?? Task.CompletedTask);
         }
 
-        // ─────────────────────────────────────────────
+        // ─────────────────────────────────────────────────────────────────
         // HELPERS
-        // ─────────────────────────────────────────────
+        // ─────────────────────────────────────────────────────────────────
 
         private static string HashSHA256(string input)
         {

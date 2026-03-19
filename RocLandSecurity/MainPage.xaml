@@ -286,6 +286,19 @@
                 Clicked="OnFlashClicked"
                 ZIndex="10"/>
 
+            <!-- BOTÓN REFRESCAR  -->
+            <Button x:Name="BtnRefrescar"
+                WidthRequest="40"
+                HeightRequest="40"
+                BackgroundColor="#333333"
+                BorderColor="Transparent"
+                ImageSource="refresh.png"
+                HorizontalOptions="Start"
+                VerticalOptions="Start"
+                Margin="20,110,0,0"
+                Clicked="OnRefrescarClicked"
+                ZIndex="10"/>
+
             <VerticalStackLayout
                 VerticalOptions="Center"
                 HorizontalOptions="Center"

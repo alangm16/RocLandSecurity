@@ -26,11 +26,8 @@ namespace RocLandSecurity.Views.Shared
             var u = _session.UsuarioActual;
             if (u == null) return;
 
-            // Iniciales para el avatar
-            var partes = u.Nombre.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            LblIniciales.Text = partes.Length >= 2
-                ? $"{partes[0][0]}{partes[1][0]}".ToUpper()
-                : u.Nombre[..Math.Min(2, u.Nombre.Length)].ToUpper();
+            // Iniciales para el avatar (ya calculadas en el modelo)
+            LblIniciales.Text = u.Iniciales;
 
             LblNombreCompleto.Text = u.Nombre;
             LblUsuario.Text = u.UsuarioLogin;

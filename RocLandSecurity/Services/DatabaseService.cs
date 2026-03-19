@@ -23,7 +23,7 @@ namespace RocLandSecurity.Services
 
             const string query = @"
                 SELECT ID, Nombre, Usuario, Contrasena, QRCode, Rol, FechaCreacion, Activo
-                FROM Usuarios
+                FROM TBL_ROCLAND_SECURITY_USUARIOS
                 WHERE Usuario = @usuario AND Contrasena = @contrasena AND Activo = 1";
 
             using var cmd = new SqlCommand(query, conn);
@@ -44,7 +44,7 @@ namespace RocLandSecurity.Services
 
             const string query = @"
                 SELECT ID, Nombre, Usuario, Contrasena, QRCode, Rol, FechaCreacion, Activo
-                FROM Usuarios
+                FROM TBL_ROCLAND_SECURITY_USUARIOS
                 WHERE QRCode = @qrCode";
 
             using var cmd = new SqlCommand(query, conn);
@@ -65,7 +65,7 @@ namespace RocLandSecurity.Services
 
             const string query = @"
                 SELECT ID, Nombre, Usuario, Contrasena, QRCode, Rol, FechaCreacion, Activo
-                FROM Usuarios
+                FROM TBL_ROCLAND_SECURITY_USUARIOS
                 WHERE Rol = 0 AND Activo = 1
                 ORDER BY Nombre";
 
@@ -94,7 +94,7 @@ namespace RocLandSecurity.Services
 
             const string query = @"
                 SELECT ID, Fecha, HoraInicio, HoraFin, GuardiaID, SupervisorID
-                FROM Turnos
+                FROM TBL_ROCLAND_SECURITY_TURNOS
                 WHERE GuardiaID = @guardiaID
                   AND Fecha = CAST(GETDATE() AS DATE)";
 
@@ -119,7 +119,7 @@ namespace RocLandSecurity.Services
 
             // 1. Insertar el turno
             const string insertTurno = @"
-                INSERT INTO Turnos (Fecha, HoraInicio, HoraFin, GuardiaID)
+                INSERT INTO TBL_ROCLAND_SECURITY_TURNOS (Fecha, HoraInicio, HoraFin, GuardiaID)
                 VALUES (CAST(GETDATE() AS DATE), '20:00', '06:00', @guardiaID);
                 SELECT SCOPE_IDENTITY();";
 
@@ -165,11 +165,11 @@ namespace RocLandSecurity.Services
                 SELECT
                     r.ID, r.TurnoID, r.GuardiaID,
                     r.HoraProgramada, r.HoraInicio, r.HoraFin, r.Estado,
-                    (SELECT COUNT(*) FROM Rondines_Puntos rp
+                    (SELECT COUNT(*) FROM TBL_ROCLAND_SECURITY_RONDINESPUNTOS rp
                      WHERE rp.RondinID = r.ID AND rp.Estado = 1) AS PuntosVisitados,
-                    (SELECT COUNT(*) FROM Rondines_Puntos rp
+                    (SELECT COUNT(*) FROM TBL_ROCLAND_SECURITY_RONDINESPUNTOS rp
                      WHERE rp.RondinID = r.ID) AS PuntosTotal
-                FROM Rondines r
+                FROM TBL_ROCLAND_SECURITY_RONDINES r
                 WHERE r.TurnoID = @turnoID
                 ORDER BY r.HoraProgramada";
 
@@ -201,12 +201,12 @@ namespace RocLandSecurity.Services
                 SELECT
                     r.ID, r.TurnoID, r.GuardiaID,
                     r.HoraProgramada, r.HoraInicio, r.HoraFin, r.Estado,
-                    (SELECT COUNT(*) FROM Rondines_Puntos rp
+                    (SELECT COUNT(*) FROM TBL_ROCLAND_SECURITY_RONDINESPUNTOS rp
                      WHERE rp.RondinID = r.ID AND rp.Estado = 1) AS PuntosVisitados,
-                    (SELECT COUNT(*) FROM Rondines_Puntos rp
+                    (SELECT COUNT(*) FROM TBL_ROCLAND_SECURITY_RONDINESPUNTOS rp
                      WHERE rp.RondinID = r.ID) AS PuntosTotal
-                FROM Rondines r
-                INNER JOIN Turnos t ON r.TurnoID = t.ID
+                FROM TBL_ROCLAND_SECURITY_RONDINES r
+                INNER JOIN TBL_ROCLAND_SECURITY_TURNOS t ON r.TurnoID = t.ID
                 WHERE t.Fecha = CAST(GETDATE() AS DATE)
                 ORDER BY r.HoraProgramada, r.GuardiaID";
 
@@ -235,8 +235,8 @@ namespace RocLandSecurity.Services
                     SUM(CASE WHEN r.Estado = 1 THEN 1 ELSE 0 END) AS EnProgreso,
                     SUM(CASE WHEN r.Estado = 0 THEN 1 ELSE 0 END) AS Pendientes,
                     SUM(CASE WHEN r.Estado = 4 THEN 1 ELSE 0 END) AS Incidencias
-                FROM Rondines r
-                INNER JOIN Turnos t ON r.TurnoID = t.ID
+                FROM TBL_ROCLAND_SECURITY_RONDINES r
+                INNER JOIN TBL_ROCLAND_SECURITY_TURNOS t ON r.TurnoID = t.ID
                 WHERE t.Fecha = CAST(GETDATE() AS DATE)";
 
             using var cmd = new SqlCommand(query, conn);
@@ -292,6 +292,9 @@ namespace RocLandSecurity.Services
             Estado = r.GetInt32(6),
             PuntosVisitados = r.GetInt32(7),
             PuntosTotal = r.GetInt32(8)
+            // Sincronizado y FechaModificacion no se cargan en listados
+            // generales para mantener las queries ligeras. Se cargan
+            // solo cuando se necesita la cola de sync.
         };
     }
 }

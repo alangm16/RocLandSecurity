@@ -4,23 +4,25 @@ using System.Text;
 
 namespace RocLandSecurity.Models
 {
+    /// Tabla: TBL_ROCLAND_SECURITY_RONDINES
     public class Rondin
     {
         public int ID { get; set; }
         public int TurnoID { get; set; }
         public int GuardiaID { get; set; }
-        public DateTime HoraProgramada {  get; set; }
+        public DateTime HoraProgramada { get; set; }
         public DateTime? HoraInicio { get; set; }
         public DateTime? HoraFin { get; set; }
-        public int Estado { get; set; } // 0= Pendiente, 1 = En Progreso, 2 = Completado, 3 = Incompleto, 4 = Incidencia
+        public int Estado { get; set; }
 
-        // Propiedades de navegación
-        public Turno Turno { get; set; }
-        public Usuario Guardia { get; set; }
+        public bool Sincronizado { get; set; }
 
-        // Puntos
+        public DateTime FechaModificacion { get; set; }
+
         public int PuntosVisitados { get; set; }
         public int PuntosTotal { get; set; } = 20;
+
+        public string NombreGuardia { get; set; } = string.Empty;
 
         public string HoraProgramadaStr => HoraProgramada.ToString("HH:mm");
 
@@ -42,14 +44,13 @@ namespace RocLandSecurity.Models
             _ => "Desconocido"
         };
 
-        // Colores según el esquema definido en el diseño
         public string EstadoColor => Estado switch
         {
-            0 => "#FAC775",  // Amarillo — pendiente
-            1 => "#85B7EB",  // Azul     — en progreso
-            2 => "#97C459",  // Verde    — completado
-            3 => "#F09595",  // Rojo     — incompleto
-            4 => "#F09595",  // Rojo     — con incidencia
+            0 => "#FAC775",
+            1 => "#85B7EB",
+            2 => "#97C459",
+            3 => "#F09595",
+            4 => "#F09595",
             _ => "#888888"
         };
 
@@ -65,8 +66,10 @@ namespace RocLandSecurity.Models
 
         public string PuntosStr => $"{PuntosVisitados}/{PuntosTotal} pts";
 
-        public bool EsInicialbe => Estado == 0;
+        public bool EsIniciable => Estado == 0;
         public bool EstaEnProgreso => Estado == 1;
         public bool EstaFinalizado => Estado >= 2;
+
+        public bool PendienteDeSincronizar => !Sincronizado;
     }
 }

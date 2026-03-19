@@ -262,7 +262,7 @@ namespace RocLandSecurity.Views.Guardia
             contenido.Children.Add(progress);
 
             // Botón iniciar (solo si el rondín es el pendiente actual)
-            if (rondin.EsInicialbe)
+            if (rondin.EsIniciable)
             {
                 var btnIniciar = new Button
                 {

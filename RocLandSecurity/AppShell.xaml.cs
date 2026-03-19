@@ -7,39 +7,39 @@
             InitializeComponent();
         }
 
-        /// <summary>
-        /// Activa el TabBar del guardia y cierra el modal de login.
-        /// Llamado desde MainPage tras login exitoso con Rol = 0.
-        /// </summary>
         public async Task MostrarTabBarGuardiaAsync()
         {
             Current.CurrentItem = TabBarGuardia;
+
+            if (TabBarGuardia.CurrentItem != TabBarGuardia.Items[0])
+                TabBarGuardia.CurrentItem = TabBarGuardia.Items[0];
+
             await Navigation.PopModalAsync(animated: true);
         }
 
-        /// <summary>
-        /// Activa el TabBar del supervisor y cierra el modal de login.
-        /// Llamado desde MainPage tras login exitoso con Rol = 1.
-        /// </summary>
         public async Task MostrarTabBarSupervisorAsync()
         {
             Current.CurrentItem = TabBarSupervisor;
+
+            if (TabBarSupervisor.CurrentItem != TabBarSupervisor.Items[0])
+                TabBarSupervisor.CurrentItem = TabBarSupervisor.Items[0];
+
             await Navigation.PopModalAsync(animated: true);
         }
 
-        /// <summary>
-        /// Cierra sesión: vuelve a mostrar el login como modal.
-        /// Llamado desde PerfilPage con:
-        ///   (Shell.Current as AppShell)?.LogoutAsync();
-        /// </summary>
         public async Task LogoutAsync()
         {
-            // Resolver MainPage desde el contenedor de DI
+            TabBarGuardia.CurrentItem = TabBarGuardia.Items[0];
+            TabBarSupervisor.CurrentItem = TabBarSupervisor.Items[0];
+
             var loginPage = IPlatformApplication.Current?.Services
                 .GetService<MainPage>();
 
             if (loginPage != null)
+            {
+                loginPage.ResetearVista();
                 await Navigation.PushModalAsync(loginPage, animated: true);
+            }
         }
     }
 }

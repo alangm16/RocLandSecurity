@@ -4,10 +4,7 @@ using System.Text;
 
 namespace RocLandSecurity.Models
 {
-    /// <summary>
-    /// Notificación enviada a un usuario.
-    /// Tipo: 0=Rondín próximo, 1=Rondín pendiente, 2=Rondín no iniciado, 3=Incidencia reportada
-    /// </summary>
+    /// Tabla: TBL_ROCLAND_SECURITY_NOTIFICACIONES
     public class Notificacion
     {
         public int ID { get; set; }
@@ -20,7 +17,6 @@ namespace RocLandSecurity.Models
         public bool Leida { get; set; }
         public DateTime? FechaLeida { get; set; }
 
-        // ── Propiedades calculadas para la UI ──────────────────────────
         public string TipoTexto => Tipo switch
         {
             0 => "Rondín próximo",
@@ -32,14 +28,25 @@ namespace RocLandSecurity.Models
 
         public string TipoIcono => Tipo switch
         {
-            0 => "🔔",
-            1 => "⏰",
-            2 => "⚠️",
-            3 => "🚨",
-            _ => "📢"
+            0 => "tab_rondin.png",
+            1 => "tab_rondin.png",
+            2 => "tab_incidencia.png",
+            3 => "tab_incidencia.png",
+            _ => "tab_panel.png"
         };
 
-        public string FechaEnvioStr =>
-            FechaEnvio.ToString("dd/MM HH:mm");
+        public string FechaEnvioStr => FechaEnvio.ToString("dd/MM HH:mm");
+
+        public string TiempoTranscurrido
+        {
+            get
+            {
+                var diff = DateTime.Now - FechaEnvio;
+                if (diff.TotalMinutes < 1) return "Ahora";
+                if (diff.TotalMinutes < 60) return $"Hace {(int)diff.TotalMinutes} min";
+                if (diff.TotalHours < 24) return $"Hace {(int)diff.TotalHours} h";
+                return FechaEnvioStr;
+            }
+        }
     }
 }
