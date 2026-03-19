@@ -80,13 +80,10 @@
 	</ItemGroup>
 
 	<ItemGroup>
-	  <MauiAsset Include="AppSettings.json">
-	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-	  </MauiAsset>
-	</ItemGroup>
-
-	<ItemGroup>
 	  <MauiXaml Update="Views\Guardia\GuardiaHomePage.xaml">
+	    <Generator>MSBuild:Compile</Generator>
+	  </MauiXaml>
+	  <MauiXaml Update="Views\Guardia\Rondinactivopage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
 	  <MauiXaml Update="Views\Shared\PerfilPage.xaml">

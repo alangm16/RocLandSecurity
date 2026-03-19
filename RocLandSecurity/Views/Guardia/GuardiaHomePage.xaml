@@ -5,158 +5,154 @@
              BackgroundColor="#111111"
              Shell.NavBarIsVisible="False">
 
-    <ContentPage.Resources>
-        <ResourceDictionary>
-            <Color x:Key="AccentGreen">#6DBF2E</Color>
-            <Color x:Key="CardBg">#1C1C1C</Color>
-            <Color x:Key="TextPrimary">#FFFFFF</Color>
-            <Color x:Key="TextSecondary">#888888</Color>
-            <Color x:Key="BorderColor">#2E2E2E</Color>
-        </ResourceDictionary>
-    </ContentPage.Resources>
+	<ContentPage.Resources>
+		<ResourceDictionary>
+			<Color x:Key="AccentGreen">#6DBF2E</Color>
+			<Color x:Key="CardBg">#1A1A1A</Color>
+			<Color x:Key="TextPrimary">#FFFFFF</Color>
+			<Color x:Key="TextSecondary">#888888</Color>
+			<Color x:Key="BorderColor">#2A2A2A</Color>
+			<Color x:Key="SectionLabel">#666666</Color>
+		</ResourceDictionary>
+	</ContentPage.Resources>
 
-    <Grid RowDefinitions="Auto,*">
+	<Grid RowDefinitions="Auto,*">
 
-        <!-- ══════════════════════════════════════════════════
-             HEADER
+		<!-- ══════════════════════════════════════════════════
+             HEADER — icono campana + título + fecha
         ══════════════════════════════════════════════════ -->
-        <Grid Grid.Row="0"
-              BackgroundColor="#1C1C1C"
+		<Grid Grid.Row="0"
+              BackgroundColor="#1A1A1A"
               Padding="20,48,20,16"
-              ColumnDefinitions="*,Auto">
+              ColumnDefinitions="Auto,*">
 
-            <VerticalStackLayout Grid.Column="0" Spacing="2">
-                <Label x:Name="LblBienvenida"
-                       Text="Bienvenido"
+			<!-- Icono campana con badge verde -->
+			<Border Grid.Column="0"
+                    BackgroundColor="#1A2E1A"
+                    StrokeThickness="0"
+                    WidthRequest="40" HeightRequest="40"
+                    VerticalOptions="Center"
+                    Margin="0,0,12,0">
+				<Border.StrokeShape>
+					<RoundRectangle CornerRadius="12"/>
+				</Border.StrokeShape>
+				<Image Source="alert.png"
+                       WidthRequest="24"
+					   HeightRequest="24"
+                       HorizontalOptions="Center"
+                       VerticalOptions="Center"/>
+			</Border>
+
+			<VerticalStackLayout Grid.Column="1" Spacing="2" VerticalOptions="Center">
+				<Label x:Name="LblNombre"
+                       Text="Rondines"
+                       TextColor="{StaticResource TextPrimary}"
+                       FontSize="20" FontAttributes="Bold"
+                       LineBreakMode="TailTruncation"/>
+				<Label x:Name="LblFechaTurno"
+                       Text="Turno nocturno · --"
                        TextColor="{StaticResource TextSecondary}"
                        FontSize="13"/>
-                <Label x:Name="LblNombre"
-                       Text="--"
-                       TextColor="{StaticResource TextPrimary}"
-                       FontSize="20" FontAttributes="Bold"/>
-                <Label x:Name="LblFechaTurno"
-                       Text="--"
-                       TextColor="{StaticResource TextSecondary}"
-                       FontSize="12"/>
-            </VerticalStackLayout>
+			</VerticalStackLayout>
+		</Grid>
 
-            <!-- Badge de turno activo / inactivo -->
-            <Border Grid.Column="1"
-                    x:Name="BadgeTurno"
-                    BackgroundColor="#0a1a0a"
-                    StrokeThickness="1" Stroke="#97C459"
-                    Padding="10,6"
-                    VerticalOptions="Center">
-                <Border.StrokeShape>
-                    <RoundRectangle CornerRadius="20"/>
-                </Border.StrokeShape>
-                <Label x:Name="LblBadgeTurno"
-                       Text="Turno activo"
-                       TextColor="#97C459"
-                       FontSize="11" FontAttributes="Bold"/>
-            </Border>
-
-        </Grid>
-
-        <!-- ══════════════════════════════════════════════════
-             CONTENIDO PRINCIPAL
+		<!-- ══════════════════════════════════════════════════
+             CONTENIDO
         ══════════════════════════════════════════════════ -->
-        <ScrollView Grid.Row="1">
-            <VerticalStackLayout Padding="20,16" Spacing="0">
+		<ScrollView Grid.Row="1">
+			<VerticalStackLayout Padding="16,14,16,24" Spacing="0">
 
-                <!-- ── ESTADO DE CARGA ──────────────────── -->
-                <ActivityIndicator x:Name="LoadingIndicator"
-                                   IsRunning="True"
-                                   IsVisible="True"
+				<!-- Cargando -->
+				<ActivityIndicator x:Name="LoadingIndicator"
+                                   IsRunning="True" IsVisible="True"
                                    Color="{StaticResource AccentGreen}"
                                    HeightRequest="48"
                                    Margin="0,32,0,0"/>
 
-                <!-- ── SIN TURNO ACTIVO ─────────────────── -->
-                <VerticalStackLayout x:Name="PanelSinTurno"
+				<!-- ── SIN TURNO ───────────────────────────── -->
+				<VerticalStackLayout x:Name="PanelSinTurno"
                                      IsVisible="False"
                                      HorizontalOptions="Center"
-                                     Spacing="12"
-                                     Margin="0,40,0,0">
-
-                    <Image Source="no_turno.png"
-                           WidthRequest="80" HeightRequest="80"
-                           HorizontalOptions="Center"
-                           Opacity="0.5"/>
-
-                    <Label Text="Sin turno activo"
+                                     Spacing="14"
+                                     Margin="0,48,0,0">
+					<Label Text="🌙"
+                           FontSize="48"
+                           HorizontalOptions="Center"/>
+					<Label Text="Sin turno activo"
                            TextColor="{StaticResource TextPrimary}"
                            FontSize="18" FontAttributes="Bold"
                            HorizontalOptions="Center"/>
-
-                    <Label Text="No hay un turno nocturno registrado para hoy."
+					<Label Text="No hay un turno registrado para hoy."
                            TextColor="{StaticResource TextSecondary}"
-                           FontSize="13"
+                           FontSize="14"
                            HorizontalOptions="Center"
                            HorizontalTextAlignment="Center"
                            Margin="0,0,0,8"/>
-
-                    <Button x:Name="BtnIniciarTurno"
+					<Button x:Name="BtnIniciarTurno"
                             Text="Iniciar turno de hoy"
                             BackgroundColor="{StaticResource AccentGreen}"
                             TextColor="#111111"
                             FontAttributes="Bold"
                             FontSize="15"
-                            CornerRadius="12"
-                            HeightRequest="52"
-                            WidthRequest="240"
+                            CornerRadius="14"
+                            HeightRequest="54"
+                            HorizontalOptions="Fill"
                             Clicked="OnIniciarTurnoClicked"/>
+				</VerticalStackLayout>
 
-                </VerticalStackLayout>
-
-                <!-- ── RONDINES DEL TURNO ───────────────── -->
-                <VerticalStackLayout x:Name="PanelRondines"
+				<!-- ── RONDINES ────────────────────────────── -->
+				<VerticalStackLayout x:Name="PanelRondines"
                                      IsVisible="False"
                                      Spacing="0">
 
-                    <!-- Encabezado sección -->
-                    <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,12">
-                        <Label Grid.Column="0"
-                               Text="Rondines del turno"
-                               TextColor="{StaticResource TextPrimary}"
-                               FontSize="15" FontAttributes="Bold"
-                               VerticalOptions="Center"/>
-                        <Label Grid.Column="1"
-                               x:Name="LblConteoRondines"
-                               Text="0/5 completados"
-                               TextColor="{StaticResource TextSecondary}"
-                               FontSize="12"
-                               VerticalOptions="Center"/>
-                    </Grid>
+					<!-- Tarjeta rondín en progreso (se construye en code-behind) -->
+					<VerticalStackLayout x:Name="PanelEnProgreso" IsVisible="False" Margin="0,0,0,20">
+						<!-- Filled by code-behind -->
+					</VerticalStackLayout>
 
-                    <!-- Lista de rondines (se llena desde code-behind) -->
-                    <VerticalStackLayout x:Name="ListaRondines" Spacing="10"/>
+					<!-- Sección: Pendientes -->
+					<Label x:Name="LblSeccionPendientes"
+                           Text="PENDIENTES"
+                           TextColor="{StaticResource SectionLabel}"
+                           FontSize="11" FontAttributes="Bold"
+                           Margin="4,0,0,8"
+                           IsVisible="False"/>
+					<VerticalStackLayout x:Name="ListaPendientes" Spacing="10" Margin="0,0,0,20"/>
 
-                    <!-- Espaciado inferior para que el TabBar no tape contenido -->
-                    <BoxView HeightRequest="24" Color="Transparent"/>
+					<!-- Sección: Completados hoy -->
+					<Label x:Name="LblSeccionCompletados"
+                           Text="COMPLETADOS HOY"
+                           TextColor="{StaticResource SectionLabel}"
+                           FontSize="11" FontAttributes="Bold"
+                           Margin="4,0,0,8"
+                           IsVisible="False"/>
+					<VerticalStackLayout x:Name="ListaCompletados" Spacing="10"/>
 
-                </VerticalStackLayout>
+					<!-- Espaciado para el TabBar -->
+					<!-- <BoxView HeightRequest="32" Color="Transparent"/> -->
 
-            </VerticalStackLayout>
-        </ScrollView>
+				</VerticalStackLayout>
 
-        <!-- Toast flotante -->
-        <Frame x:Name="ToastFrame"
+			</VerticalStackLayout>
+		</ScrollView>
+
+		<!-- Toast -->
+		<Frame x:Name="ToastFrame"
                Grid.Row="0" Grid.RowSpan="2"
                BackgroundColor="#FF5555"
-               CornerRadius="12" Padding="12,8"
+               CornerRadius="12" Padding="14,10"
                IsVisible="False"
                HorizontalOptions="Center"
                VerticalOptions="Start"
-               Margin="24,56,24,0"
+               Margin="20,56,20,0"
                HasShadow="True" Opacity="0"
                ZIndex="100">
-            <Label x:Name="ToastLabel"
+			<Label x:Name="ToastLabel"
                    TextColor="White"
                    FontAttributes="Bold"
                    FontSize="13"
                    HorizontalOptions="Center"/>
-        </Frame>
+		</Frame>
 
-    </Grid>
+	</Grid>
 </ContentPage>

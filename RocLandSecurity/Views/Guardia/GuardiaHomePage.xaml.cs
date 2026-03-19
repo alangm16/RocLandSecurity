@@ -17,10 +17,6 @@ namespace RocLandSecurity.Views.Guardia
             _session = session;
         }
 
-        // ─────────────────────────────────────────────────────────────────
-        // CICLO DE VIDA — recarga al volver a la pantalla
-        // ─────────────────────────────────────────────────────────────────
-
         protected override async void OnAppearing()
         {
             base.OnAppearing();
@@ -28,7 +24,7 @@ namespace RocLandSecurity.Views.Guardia
         }
 
         // ─────────────────────────────────────────────────────────────────
-        // CARGA DE DATOS
+        // CARGA
         // ─────────────────────────────────────────────────────────────────
 
         private async Task CargarDatosAsync()
@@ -36,12 +32,11 @@ namespace RocLandSecurity.Views.Guardia
             var usuario = _session.UsuarioActual;
             if (usuario == null) return;
 
-            // Header
             LblNombre.Text = usuario.Nombre;
-            LblFechaTurno.Text = DateTime.Now.ToString("dddd dd 'de' MMMM",
+            LblFechaTurno.Text = DateTime.Now.ToString(
+                "dddd dd 'de' MMMM",
                 new System.Globalization.CultureInfo("es-MX"));
 
-            // Estado de carga
             LoadingIndicator.IsVisible = true;
             PanelSinTurno.IsVisible = false;
             PanelRondines.IsVisible = false;
@@ -51,13 +46,9 @@ namespace RocLandSecurity.Views.Guardia
                 _turnoActivo = await _db.GetTurnoActivoAsync(usuario.ID);
 
                 if (_turnoActivo == null)
-                {
-                    // No hay turno hoy
                     MostrarSinTurno();
-                }
                 else
                 {
-                    // Hay turno — cargar rondines
                     _rondines = await _db.GetRondinesPorTurnoAsync(_turnoActivo.ID);
                     MostrarRondines();
                 }
@@ -74,38 +65,138 @@ namespace RocLandSecurity.Views.Guardia
         }
 
         // ─────────────────────────────────────────────────────────────────
-        // RENDERIZAR ESTADO
+        // RENDERIZAR
         // ─────────────────────────────────────────────────────────────────
 
         private void MostrarSinTurno()
         {
-            BadgeTurno.BackgroundColor = Color.FromArgb("#1a0a0a");
-            BadgeTurno.Stroke = Color.FromArgb("#F09595");
-            LblBadgeTurno.Text = "Sin turno";
-            LblBadgeTurno.TextColor = Color.FromArgb("#F09595");
-
             PanelSinTurno.IsVisible = true;
             PanelRondines.IsVisible = false;
         }
 
         private void MostrarRondines()
         {
-            BadgeTurno.BackgroundColor = Color.FromArgb("#0a1a0a");
-            BadgeTurno.Stroke = Color.FromArgb("#97C459");
-            LblBadgeTurno.Text = "Turno activo";
-            LblBadgeTurno.TextColor = Color.FromArgb("#97C459");
+            // Separar rondines por estado
+            var enProgreso = _rondines.Where(r => r.Estado == 1).ToList();
+            var pendientes = _rondines.Where(r => r.Estado == 0).OrderBy(r => r.HoraProgramada).ToList();
+            var completados = _rondines.Where(r => r.Estado >= 2).OrderBy(r => r.HoraProgramada).ToList();
 
-            // Conteo
-            int completados = _rondines.Count(r => r.Estado == 2 || r.Estado == 4);
-            LblConteoRondines.Text = $"{completados}/{_rondines.Count} completados";
+            // Actualizar header
+            LblNombre.Text = "Rondines";
+            LblFechaTurno.Text = $"Turno nocturno · {DateTime.Now:dd/M/yyyy}";
 
-            // Construir tarjetas de rondines
-            ListaRondines.Children.Clear();
-            foreach (var rondin in _rondines)
-                ListaRondines.Children.Add(CrearTarjetaRondin(rondin));
+            // ── En progreso ──────────────────────────────────
+            PanelEnProgreso.Children.Clear();
+            PanelEnProgreso.IsVisible = enProgreso.Count > 0;
+            foreach (var r in enProgreso)
+                PanelEnProgreso.Children.Add(CrearTarjetaEnProgreso(r));
+
+            // ── Pendientes ───────────────────────────────────
+            ListaPendientes.Children.Clear();
+            LblSeccionPendientes.IsVisible = pendientes.Count > 0;
+            if (pendientes.Count > 0)
+                LblSeccionPendientes.Text = $"PENDIENTES ({pendientes.Count})";
+            foreach (var r in pendientes)
+                ListaPendientes.Children.Add(CrearTarjetaRondin(r));
+
+            // ── Completados ──────────────────────────────────
+            ListaCompletados.Children.Clear();
+            LblSeccionCompletados.IsVisible = completados.Count > 0;
+            foreach (var r in completados)
+                ListaCompletados.Children.Add(CrearTarjetaRondin(r));
 
             PanelSinTurno.IsVisible = false;
             PanelRondines.IsVisible = true;
+        }
+
+
+        private View CrearTarjetaEnProgreso(Rondin rondin)
+        {
+            var card = new Border
+            {
+                BackgroundColor = Color.FromArgb("#1A1A1A"),
+                StrokeThickness = 1,
+                Stroke = Color.FromArgb("#2A4A2A"),
+                Padding = new Thickness(16, 14),
+            };
+            card.StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle
+            { CornerRadius = new CornerRadius(14) };
+
+            var grid = new Grid
+            {
+                ColumnDefinitions =
+                {
+                    new ColumnDefinition { Width = new GridLength(40) },
+                    new ColumnDefinition { Width = GridLength.Star },
+                    new ColumnDefinition { Width = new GridLength(24) },
+                }
+            };
+
+            // Icono play
+            var iconBorder = new Border
+            {
+                BackgroundColor = Color.FromArgb("#1A3A1A"),
+                StrokeThickness = 0,
+                WidthRequest = 36,
+                HeightRequest = 36,
+                VerticalOptions = LayoutOptions.Center,
+            };
+            iconBorder.StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle
+            { CornerRadius = new CornerRadius(10) };
+            iconBorder.Content = new Image
+            {
+                Source = "play.png",
+                WidthRequest = 24,
+                HeightRequest = 24,
+                HorizontalOptions = LayoutOptions.Center,
+                VerticalOptions = LayoutOptions.Center,
+            };
+            Grid.SetColumn(iconBorder, 0);
+
+            // Texto
+            var info = new VerticalStackLayout
+            {
+                Spacing = 2,
+                VerticalOptions = LayoutOptions.Center,
+                Margin = new Thickness(10, 0, 0, 0),
+            };
+            info.Children.Add(new Label
+            {
+                Text = "Rondín en progreso",
+                TextColor = Colors.White,
+                FontSize = 15,
+                FontAttributes = FontAttributes.Bold,
+            });
+            info.Children.Add(new Label
+            {
+                Text = $"Programado: {rondin.HoraProgramadaStr} hrs",
+                TextColor = Color.FromArgb("#888888"),
+                FontSize = 12,
+            });
+            Grid.SetColumn(info, 1);
+
+            // Flecha
+            var arrow = new Label
+            {
+                Text = "›",
+                TextColor = Color.FromArgb("#888888"),
+                FontSize = 22,
+                VerticalOptions = LayoutOptions.Center,
+            };
+            Grid.SetColumn(arrow, 2);
+
+            grid.Children.Add(iconBorder);
+            grid.Children.Add(info);
+            grid.Children.Add(arrow);
+            card.Content = grid;
+
+            // Tap para retomar
+            card.GestureRecognizers.Add(new TapGestureRecognizer
+            {
+                Command = new Command(async () => await IrARondinActivoAsync(rondin))
+            });
+
+            return card;
         }
 
         // ─────────────────────────────────────────────────────────────────
@@ -114,10 +205,9 @@ namespace RocLandSecurity.Views.Guardia
 
         private View CrearTarjetaRondin(Rondin rondin)
         {
-            var estadoColor = Color.FromArgb(rondin.EstadoColor);
-            var estadoColorFondo = Color.FromArgb(rondin.EstadoColorFondo);
+            var clr = Color.FromArgb(rondin.EstadoColor);
+            var fondo = Color.FromArgb(rondin.EstadoColorFondo);
 
-            // Contenedor principal de la tarjeta
             var card = new Border
             {
                 BackgroundColor = Color.FromArgb("#1C1C1C"),
@@ -128,36 +218,38 @@ namespace RocLandSecurity.Views.Guardia
             card.StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle
             { CornerRadius = new CornerRadius(12) };
 
-            // Barra de color izquierda + contenido
             var innerGrid = new Grid
             {
-                ColumnDefinitions = new ColumnDefinitionCollection
+                ColumnDefinitions =
                 {
                     new ColumnDefinition { Width = new GridLength(4) },
                     new ColumnDefinition { Width = GridLength.Star },
                 }
             };
 
-            // Barra lateral de color según estado
-            var barra = new BoxView
+            innerGrid.Children.Add(new BoxView
             {
-                Color = estadoColor,
-                WidthRequest = 4,
-                VerticalOptions = LayoutOptions.Fill,
+                Color = clr,
+                VerticalOptions = LayoutOptions.Fill
+            });
+            var boxView = new BoxView
+            {
+                Color = clr,
+                VerticalOptions = LayoutOptions.Fill
             };
-            Grid.SetColumn(barra, 0);
+            innerGrid.Children.Add(boxView);
+            Grid.SetColumn(boxView, 0);
 
-            // Contenido de la tarjeta
             var contenido = new Grid
             {
                 Padding = new Thickness(14, 12),
-                RowDefinitions = new RowDefinitionCollection
+                RowDefinitions =
                 {
                     new RowDefinition { Height = GridLength.Auto },
                     new RowDefinition { Height = GridLength.Auto },
                     new RowDefinition { Height = GridLength.Auto },
                 },
-                ColumnDefinitions = new ColumnDefinitionCollection
+                ColumnDefinitions =
                 {
                     new ColumnDefinition { Width = GridLength.Star },
                     new ColumnDefinition { Width = GridLength.Auto },
@@ -165,7 +257,7 @@ namespace RocLandSecurity.Views.Guardia
             };
             Grid.SetColumn(contenido, 1);
 
-            // Hora programada
+            // Hora
             var lblHora = new Label
             {
                 Text = $"Rondín {rondin.HoraProgramadaStr} hrs",
@@ -173,31 +265,29 @@ namespace RocLandSecurity.Views.Guardia
                 FontSize = 15,
                 FontAttributes = FontAttributes.Bold,
             };
-            Grid.SetRow(lblHora, 0);
-            Grid.SetColumn(lblHora, 0);
+            Grid.SetRow(lblHora, 0); Grid.SetColumn(lblHora, 0);
 
-            // Badge de estado
-            var badgeBorder = new Border
+            // Badge estado
+            var badge = new Border
             {
-                BackgroundColor = estadoColorFondo,
+                BackgroundColor = fondo,
                 StrokeThickness = 1,
-                Stroke = estadoColor,
+                Stroke = clr,
                 Padding = new Thickness(8, 3),
                 VerticalOptions = LayoutOptions.Center,
             };
-            badgeBorder.StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle
+            badge.StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle
             { CornerRadius = new CornerRadius(10) };
-            badgeBorder.Content = new Label
+            badge.Content = new Label
             {
                 Text = rondin.EstadoTexto,
-                TextColor = estadoColor,
+                TextColor = clr,
                 FontSize = 10,
                 FontAttributes = FontAttributes.Bold,
             };
-            Grid.SetRow(badgeBorder, 0);
-            Grid.SetColumn(badgeBorder, 1);
+            Grid.SetRow(badge, 0); Grid.SetColumn(badge, 1);
 
-            // Info secundaria: puntos y duración
+            // Info puntos / duración
             var lblInfo = new Label
             {
                 Text = rondin.EstaFinalizado
@@ -207,89 +297,83 @@ namespace RocLandSecurity.Views.Guardia
                 FontSize = 12,
                 Margin = new Thickness(0, 4, 0, 0),
             };
-            Grid.SetRow(lblInfo, 1);
-            Grid.SetColumn(lblInfo, 0);
+            Grid.SetRow(lblInfo, 1); Grid.SetColumn(lblInfo, 0);
             Grid.SetColumnSpan(lblInfo, 2);
 
-            // Barra de progreso de puntos
-            var barraProgreso = new Grid
-            {
-                HeightRequest = 4,
-                BackgroundColor = Color.FromArgb("#2E2E2E"),
-                Margin = new Thickness(0, 8, 0, 0),
-            };
-            barraProgreso.StrokeShape();  // extensión no existe, usamos Border directamente
-
-            var progresoFill = new BoxView
-            {
-                Color = estadoColor,
-                HeightRequest = 4,
-                HorizontalOptions = LayoutOptions.Start,
-                WidthRequest = 0, // se ajusta abajo
-            };
-
-            // Calcular ancho proporcional en code (aprox)
+            // Barra de progreso
             double pct = rondin.PuntosTotal > 0
-                ? (double)rondin.PuntosVisitados / rondin.PuntosTotal
-                : 0;
-
-            var progressContainer = new Border
-            {
-                BackgroundColor = Color.FromArgb("#2E2E2E"),
-                HeightRequest = 4,
-                StrokeThickness = 0,
-                Margin = new Thickness(0, 8, 0, 0),
-            };
-            progressContainer.StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle
-            { CornerRadius = new CornerRadius(2) };
-
-            // Usamos ProgressBar nativo de MAUI — más simple y correcto
+                ? (double)rondin.PuntosVisitados / rondin.PuntosTotal : 0;
             var progress = new ProgressBar
             {
                 Progress = pct,
-                ProgressColor = estadoColor,
+                ProgressColor = clr,
                 BackgroundColor = Color.FromArgb("#2E2E2E"),
                 HeightRequest = 4,
                 Margin = new Thickness(0, 8, 0, 0),
             };
-            Grid.SetRow(progress, 2);
-            Grid.SetColumn(progress, 0);
+            Grid.SetRow(progress, 2); Grid.SetColumn(progress, 0);
             Grid.SetColumnSpan(progress, 2);
 
             contenido.Children.Add(lblHora);
-            contenido.Children.Add(badgeBorder);
+            contenido.Children.Add(badge);
             contenido.Children.Add(lblInfo);
             contenido.Children.Add(progress);
 
-            // Botón iniciar (solo si el rondín es el pendiente actual)
-            if (rondin.EsIniciable)
+            // Botón iniciar — solo en el primer rondín pendiente
+            if (rondin.EsIniciable && EsPrimerPendiente(rondin))
             {
-                var btnIniciar = new Button
+                var btn = new Button
                 {
-                    Text = "▶  Iniciar rondín",
+                    Text = "Iniciar rondín",
                     BackgroundColor = Color.FromArgb("#6DBF2E"),
                     TextColor = Color.FromArgb("#111111"),
                     FontAttributes = FontAttributes.Bold,
                     FontSize = 14,
                     CornerRadius = 10,
-                    HeightRequest = 46,
+                    HeightRequest = 50,
                     Margin = new Thickness(0, 12, 0, 0),
                 };
-                btnIniciar.Clicked += (s, e) => OnIniciarRondinClicked(rondin);
+                btn.Clicked += async (s, e) => await IrARondinActivoAsync(rondin);
 
-                var rowBoton = new RowDefinition { Height = GridLength.Auto };
-                contenido.RowDefinitions.Add(rowBoton);
-                Grid.SetRow(btnIniciar, 3);
-                Grid.SetColumn(btnIniciar, 0);
-                Grid.SetColumnSpan(btnIniciar, 2);
-                contenido.Children.Add(btnIniciar);
+                contenido.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                Grid.SetRow(btn, 3); Grid.SetColumn(btn, 0);
+                Grid.SetColumnSpan(btn, 2);
+                contenido.Children.Add(btn);
+            }
+            // Rondín en progreso — botón para retomar
+            else if (rondin.EstaEnProgreso)
+            {
+                var btn = new Button
+                {
+                    Text = "▶  Continuar rondín",
+                    BackgroundColor = Color.FromArgb("#185FA5"),
+                    TextColor = Colors.White,
+                    FontAttributes = FontAttributes.Bold,
+                    FontSize = 14,
+                    CornerRadius = 10,
+                    HeightRequest = 50,
+                    Margin = new Thickness(0, 12, 0, 0),
+                };
+                btn.Clicked += async (s, e) => await IrARondinActivoAsync(rondin);
+
+                contenido.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                Grid.SetRow(btn, 3); Grid.SetColumn(btn, 0);
+                Grid.SetColumnSpan(btn, 2);
+                contenido.Children.Add(btn);
             }
 
-            innerGrid.Children.Add(barra);
             innerGrid.Children.Add(contenido);
             card.Content = innerGrid;
-
             return card;
+        }
+
+        private bool EsPrimerPendiente(Rondin rondin)
+        {
+            var pendientes = _rondines
+                .Where(r => r.Estado == 0)
+                .OrderBy(r => r.HoraProgramada)
+                .ToList();
+            return pendientes.Count > 0 && pendientes[0].ID == rondin.ID;
         }
 
         // ─────────────────────────────────────────────────────────────────
@@ -310,19 +394,24 @@ namespace RocLandSecurity.Views.Guardia
                 await ShowToastAsync("Turno iniciado correctamente", false);
                 await CargarDatosAsync();
             }
+            catch (InvalidOperationException ioe)
+            {
+                // Duplicado — turno ya existe
+                await ShowToastAsync(ioe.Message, true);
+                await CargarDatosAsync();
+            }
             catch (Exception ex)
             {
-                await ShowToastAsync($"Error al crear turno: {ex.Message}", true);
+                await ShowToastAsync($"Error: {ex.Message}", true);
                 BtnIniciarTurno.IsEnabled = true;
                 BtnIniciarTurno.Text = "Iniciar turno de hoy";
             }
         }
 
-        private async void OnIniciarRondinClicked(Rondin rondin)
+        private async Task IrARondinActivoAsync(Rondin rondin)
         {
-            // Sprint 3: navegar a RondinActivoPage pasando el ID del rondín
-            await ShowToastAsync("Rondín activo — próximamente", false);
-            // await Shell.Current.GoToAsync($"rondinactivo?rondinId={rondin.ID}");
+            await Shell.Current.GoToAsync(
+                $"rondinactivo?rondinId={rondin.ID}");
         }
 
         // ─────────────────────────────────────────────────────────────────
@@ -337,17 +426,10 @@ namespace RocLandSecurity.Views.Guardia
                 : Color.FromArgb("#6DBF2E");
             ToastFrame.IsVisible = true;
             ToastFrame.Opacity = 0;
-
             await ToastFrame.FadeTo(1, 200);
-            await Task.Delay(2000);
+            await Task.Delay(2500);
             await ToastFrame.FadeTo(0, 200);
             ToastFrame.IsVisible = false;
         }
-    }
-
-    // Extensión vacía para que compile (no existe StrokeShape() en Grid)
-    internal static class GridExtensions
-    {
-        internal static void StrokeShape(this Grid _) { }
     }
 }

@@ -38,6 +38,7 @@ namespace RocLandSecurity
             // ── Cadena de conexión ───────────────────────────────────────────
             // Para emulador: 10.0.2.2 apunta a localhost de la máquina host
             // Para dispositivo físico: usa la IP local de tu PC en la red WiFi
+            
 
             // ── Servicios (Singleton = una sola instancia en toda la app) ───
             builder.Services.AddSingleton(new DatabaseService(connectionString));
@@ -49,6 +50,7 @@ namespace RocLandSecurity
             builder.Services.AddTransient<GuardiaHomePage>();
             builder.Services.AddTransient<SupervisorHomePage>();
             builder.Services.AddTransient<PerfilPage>();
+            builder.Services.AddTransient<RondinActivoPage>();
 
 #if ANDROID
             ImageHandler.Mapper.AppendToMapping("NoTint_Android", (handler, view) =>

@@ -1,0 +1,334 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:zxing="clr-namespace:ZXing.Net.Maui.Controls;assembly=ZXing.Net.Maui.Controls"
+             x:Class="RocLandSecurity.Views.Guardia.RondinActivoPage"
+             BackgroundColor="#111111"
+             Shell.NavBarIsVisible="False"
+             Shell.TabBarIsVisible="False">
+
+    <ContentPage.Resources>
+        <ResourceDictionary>
+            <Color x:Key="AccentGreen">#6DBF2E</Color>
+            <Color x:Key="CardBg">#1A1A1A</Color>
+            <Color x:Key="TextPrimary">#FFFFFF</Color>
+            <Color x:Key="TextSecondary">#888888</Color>
+            <Color x:Key="BorderColor">#2A2A2A</Color>
+        </ResourceDictionary>
+    </ContentPage.Resources>
+
+    <Grid>
+
+        <!-- ══════════════════════════════════════════════════════
+             CAPA 0 — PANTALLA NORMAL (header + progreso + lista)
+        ══════════════════════════════════════════════════════ -->
+        <Grid x:Name="PantallaLista"
+              RowDefinitions="Auto,Auto,*,Auto">
+
+            <!-- ── HEADER ─────────────────────────────────────── -->
+            <Grid Grid.Row="0"
+                  BackgroundColor="#1A1A1A"
+                  Padding="16,48,16,16"
+                  ColumnDefinitions="44,*,44">
+
+                <!-- Volver -->
+                <Border Grid.Column="0"
+                        BackgroundColor="#252525"
+                        StrokeThickness="0"
+                        WidthRequest="36" HeightRequest="36"
+                        HorizontalOptions="Center"
+                        VerticalOptions="Center">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="10"/>
+                    </Border.StrokeShape>
+                    <Image Source="back_arrow.png"
+                        WidthRequest="24"
+                        HeightRequest="24"
+                        HorizontalOptions="Center"
+                        VerticalOptions="Center">
+                        <Image.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnVolverClicked"/>
+                        </Image.GestureRecognizers>
+                    </Image>
+                </Border>
+
+                <!-- Título -->
+                <VerticalStackLayout Grid.Column="1"
+                                     Spacing="2"
+                                     HorizontalOptions="Center"
+                                     VerticalOptions="Center">
+                    <Label x:Name="LblTituloRondin"
+                           Text="Rondín --:-- hrs"
+                           TextColor="{StaticResource TextPrimary}"
+                           FontSize="16" FontAttributes="Bold"
+                           HorizontalOptions="Center"/>
+                    <Label x:Name="LblEstadoRondin"
+                           Text="Iniciando..."
+                           TextColor="{StaticResource TextSecondary}"
+                           FontSize="12"
+                           HorizontalOptions="Center"/>
+                </VerticalStackLayout>
+
+                <!-- Incidencia -->
+                <Border Grid.Column="2"
+                        BackgroundColor="#2a0a0a"
+                        StrokeThickness="1"
+                        Stroke="#5a1a1a"
+                        WidthRequest="36" HeightRequest="36"
+                        HorizontalOptions="Center"
+                        VerticalOptions="Center">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="10"/>
+                    </Border.StrokeShape>
+                    <Image Source="warning.png"
+                        WidthRequest="24"
+                        HeightRequest="24"
+                        HorizontalOptions="Center"
+                        VerticalOptions="Center">
+                        <Image.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnReportarIncidenciaClicked"/>
+                        </Image.GestureRecognizers>
+                    </Image>
+                </Border>
+            </Grid>
+
+            <!-- ── PROGRESO ───────────────────────────────────── -->
+            <Border Grid.Row="1"
+                    BackgroundColor="#1A1A1A"
+                    StrokeThickness="0"
+                    Margin="16,0,16,12"
+                    Padding="16,14">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="14"/>
+                </Border.StrokeShape>
+                <VerticalStackLayout Spacing="8">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <Label Grid.Column="0"
+                               Text="Progreso"
+                               TextColor="{StaticResource TextPrimary}"
+                               FontSize="14" FontAttributes="Bold"/>
+                        <Label Grid.Column="1"
+                               x:Name="LblPorcentaje"
+                               Text="0/20"
+                               TextColor="{StaticResource AccentGreen}"
+                               FontSize="14" FontAttributes="Bold"/>
+                    </Grid>
+                    <ProgressBar x:Name="BarraProgreso"
+                                 Progress="0"
+                                 ProgressColor="{StaticResource AccentGreen}"
+                                 BackgroundColor="#2A2A2A"
+                                 HeightRequest="8"/>
+                    <Label x:Name="LblProgreso"
+                           Text="0% completado"
+                           TextColor="{StaticResource TextSecondary}"
+                           FontSize="12"/>
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- ── LISTA DE PUNTOS ────────────────────────────── -->
+            <ScrollView Grid.Row="2" x:Name="ScrollPuntos">
+                <VerticalStackLayout Padding="16,0,16,16" Spacing="0">
+
+                    <ActivityIndicator x:Name="LoadingIndicator"
+                                       IsRunning="True" IsVisible="True"
+                                       Color="{StaticResource AccentGreen}"
+                                       Margin="0,24,0,0"/>
+
+                    <!-- Label sección -->
+                    <Label Text="PUNTOS DE CONTROL"
+                           TextColor="#555555"
+                           FontSize="11" FontAttributes="Bold"
+                           Margin="4,4,0,10"/>
+
+                    <VerticalStackLayout x:Name="ListaPuntos" Spacing="8"/>
+
+                    <BoxView HeightRequest="16" Color="Transparent"/>
+                </VerticalStackLayout>
+            </ScrollView>
+
+            <!-- ── BOTÓN INFERIOR ─────────────────────────────── -->
+            <Grid Grid.Row="3"
+                  BackgroundColor="#111111"
+                  Padding="16,12,16,32">
+                <Button x:Name="BtnEscanear"
+                        Text="Escanear"
+                        BackgroundColor="{StaticResource AccentGreen}"
+                        TextColor="#111111"
+                        FontAttributes="Bold"
+                        FontSize="16"
+                        CornerRadius="14"
+                        HeightRequest="56"
+                        IsVisible="True"
+                        Clicked="OnEscanearClicked"/>
+                <Button x:Name="BtnFinalizar"
+                        Text="Finalizar rondín"
+                        BackgroundColor="#6DBF2E"
+                        TextColor="Black"
+                        FontAttributes="Bold"
+                        FontSize="16"
+                        CornerRadius="14"
+                        HeightRequest="56"
+                        IsVisible="False"
+                        Clicked="OnFinalizarClicked"/>
+            </Grid>
+
+        </Grid>
+
+        <!-- ══════════════════════════════════════════════════════
+             CAPA 1 — ESCÁNER QR
+        ══════════════════════════════════════════════════════ -->
+        <Grid x:Name="PanelScanner"
+              IsVisible="False"
+              BackgroundColor="Transparent">
+
+            <!-- Cámara a pantalla completa -->
+            <zxing:CameraBarcodeReaderView
+                x:Name="QrScanner"
+                IsDetecting="False"
+                BarcodesDetected="OnQrDetected"
+                HorizontalOptions="Fill"
+                VerticalOptions="Fill"/>
+
+            <!-- Overlay oscuro arriba -->
+            <BoxView Color="#CC111111"
+                     VerticalOptions="Start"
+                     HeightRequest="180"
+                     HorizontalOptions="Fill"/>
+
+            <!-- Overlay oscuro abajo -->
+            <BoxView Color="#CC111111"
+                     VerticalOptions="End"
+                     HeightRequest="220"
+                     HorizontalOptions="Fill"/>
+
+            <!-- Visor cuadrado — más grande que en login -->
+            <Grid VerticalOptions="Center"
+                  HorizontalOptions="Center"
+                  WidthRequest="300" HeightRequest="300">
+                <!-- Esquina sup-izq -->
+                <BoxView Color="{StaticResource AccentGreen}" WidthRequest="50" HeightRequest="5"
+                         HorizontalOptions="Start" VerticalOptions="Start"/>
+                <BoxView Color="{StaticResource AccentGreen}" WidthRequest="5"  HeightRequest="50"
+                         HorizontalOptions="Start" VerticalOptions="Start"/>
+                <!-- Esquina sup-der -->
+                <BoxView Color="{StaticResource AccentGreen}" WidthRequest="50" HeightRequest="5"
+                         HorizontalOptions="End"   VerticalOptions="Start"/>
+                <BoxView Color="{StaticResource AccentGreen}" WidthRequest="5"  HeightRequest="50"
+                         HorizontalOptions="End"   VerticalOptions="Start"/>
+                <!-- Esquina inf-izq -->
+                <BoxView Color="{StaticResource AccentGreen}" WidthRequest="50" HeightRequest="5"
+                         HorizontalOptions="Start" VerticalOptions="End"/>
+                <BoxView Color="{StaticResource AccentGreen}" WidthRequest="5"  HeightRequest="50"
+                         HorizontalOptions="Start" VerticalOptions="End"/>
+                <!-- Esquina inf-der -->
+                <BoxView Color="{StaticResource AccentGreen}" WidthRequest="50" HeightRequest="5"
+                         HorizontalOptions="End"   VerticalOptions="End"/>
+                <BoxView Color="{StaticResource AccentGreen}" WidthRequest="5"  HeightRequest="50"
+                         HorizontalOptions="End"   VerticalOptions="End"/>
+            </Grid>
+
+            <!-- Info del punto actual — sobre la banda superior -->
+            <VerticalStackLayout VerticalOptions="Start"
+                                 HorizontalOptions="Fill"
+                                 Padding="24,56,24,0"
+                                 Spacing="4">
+                <Label x:Name="LblPuntoActualScanner"
+                       Text="Escanea el código QR"
+                       TextColor="White"
+                       FontSize="17" FontAttributes="Bold"
+                       HorizontalOptions="Center"/>
+                <Label x:Name="LblOrdenActualScanner"
+                       Text=""
+                       TextColor="{StaticResource AccentGreen}"
+                       FontSize="13"
+                       HorizontalOptions="Center"/>
+            </VerticalStackLayout>
+
+            <!-- Estado del escaneo — sobre la banda inferior, encima de botones -->
+            <Label x:Name="LblScannerStatus"
+                   Text=""
+                   TextColor="{StaticResource AccentGreen}"
+                   FontSize="15" FontAttributes="Bold"
+                   HorizontalOptions="Center"
+                   VerticalOptions="End"
+                   Margin="0,0,0,140"/>
+
+            <!-- Botones flash + refrescar + cancelar (fila en la banda inferior) -->
+            <Grid VerticalOptions="End"
+                  HorizontalOptions="Fill"
+                  Padding="32,0,32,44"
+                  ColumnDefinitions="56,*,56">
+
+                <!-- Flash -->
+                <Border Grid.Column="0"
+                        x:Name="BtnFlashBorder"
+                        BackgroundColor="#333333"
+                        StrokeThickness="0"
+                        WidthRequest="52" HeightRequest="52"
+                        HorizontalOptions="Center">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="26"/>
+                    </Border.StrokeShape>
+                    <Image x:Name="ImgFlash"
+                           Source="flash_off.png"
+                           WidthRequest="22" HeightRequest="22"
+                           HorizontalOptions="Center"
+                           VerticalOptions="Center">
+                        <Image.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnFlashScannerClicked"/>
+                        </Image.GestureRecognizers>
+                    </Image>
+                </Border>
+
+                <!-- Cancelar (botón central grande) -->
+                <Button Grid.Column="1"
+                        Text="Cancelar"
+                        BackgroundColor="#252525"
+                        TextColor="White"
+                        FontSize="15" FontAttributes="Bold"
+                        CornerRadius="14"
+                        HeightRequest="52"
+                        Margin="10,0"
+                        Clicked="OnCancelarScanClicked"/>
+
+                <!-- Refrescar cámara -->
+                <Border Grid.Column="2"
+                        x:Name="BtnRefrescarBorder"
+                        BackgroundColor="#333333"
+                        StrokeThickness="0"
+                        WidthRequest="52" HeightRequest="52"
+                        HorizontalOptions="Center">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="26"/>
+                    </Border.StrokeShape>
+                    <Label Text="↺"
+                           TextColor="White"
+                           FontSize="20" FontAttributes="Bold"
+                           HorizontalOptions="Center"
+                           VerticalOptions="Center">
+                        <Label.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnRefrescarScannerClicked"/>
+                        </Label.GestureRecognizers>
+                    </Label>
+                </Border>
+
+            </Grid>
+        </Grid>
+
+        <!-- Toast flotante (encima de todo) -->
+        <Frame x:Name="ToastFrame"
+               BackgroundColor="#FF5555"
+               CornerRadius="12" Padding="14,10"
+               IsVisible="False"
+               HorizontalOptions="Center"
+               VerticalOptions="Start"
+               Margin="20,56,20,0"
+               HasShadow="True" Opacity="0"
+               ZIndex="200">
+            <Label x:Name="ToastLabel"
+                   TextColor="White" FontAttributes="Bold"
+                   FontSize="13" HorizontalOptions="Center"/>
+        </Frame>
+
+    </Grid>
+</ContentPage>
