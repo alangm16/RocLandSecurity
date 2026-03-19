@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="RocLandSecurity.Views.Shared.PerfilPage"
+             BackgroundColor="#111111"
+             Shell.NavBarIsVisible="False">
+
+    <Grid RowDefinitions="Auto,*,Auto">
+
+        <!-- HEADER -->
+        <Grid Grid.Row="0"
+              BackgroundColor="#1C1C1C"
+              Padding="20,48,20,20">
+            <Label Text="Mi perfil"
+                   TextColor="White"
+                   FontSize="20" FontAttributes="Bold"/>
+        </Grid>
+
+        <!-- CONTENIDO -->
+        <ScrollView Grid.Row="1">
+            <VerticalStackLayout Padding="20,24" Spacing="16">
+
+                <!-- Avatar + nombre -->
+                <VerticalStackLayout HorizontalOptions="Center" Spacing="8" Margin="0,0,0,8">
+                    <Border BackgroundColor="#252540"
+                            WidthRequest="80" HeightRequest="80"
+                            StrokeThickness="2" Stroke="#534AB7"
+                            HorizontalOptions="Center">
+                        <Border.StrokeShape>
+                            <Ellipse/>
+                        </Border.StrokeShape>
+                        <Label x:Name="LblIniciales"
+                               Text="--"
+                               TextColor="White"
+                               FontSize="28" FontAttributes="Bold"
+                               HorizontalOptions="Center"
+                               VerticalOptions="Center"/>
+                    </Border>
+                    <Label x:Name="LblNombreCompleto"
+                           Text="--"
+                           TextColor="White"
+                           FontSize="18" FontAttributes="Bold"
+                           HorizontalOptions="Center"/>
+                    <Border x:Name="BadgeRol"
+                            BackgroundColor="#0a1a0a"
+                            StrokeThickness="1" Stroke="#97C459"
+                            Padding="12,4" HorizontalOptions="Center">
+                        <Border.StrokeShape>
+                            <RoundRectangle CornerRadius="12"/>
+                        </Border.StrokeShape>
+                        <Label x:Name="LblRol"
+                               Text="--"
+                               TextColor="#97C459"
+                               FontSize="12" FontAttributes="Bold"/>
+                    </Border>
+                </VerticalStackLayout>
+
+                <!-- Datos del usuario -->
+                <Border BackgroundColor="#1C1C1C"
+                        StrokeThickness="1" Stroke="#2E2E2E"
+                        Padding="16">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="12"/>
+                    </Border.StrokeShape>
+                    <VerticalStackLayout Spacing="0">
+
+                        <Grid ColumnDefinitions="*,*" Padding="0,10">
+                            <Label Grid.Column="0" Text="Usuario"
+                                   TextColor="#888888" FontSize="13"/>
+                            <Label Grid.Column="1" x:Name="LblUsuario"
+                                   Text="--" TextColor="White"
+                                   FontSize="13" HorizontalOptions="End"/>
+                        </Grid>
+                        <BoxView HeightRequest="0.5" Color="#2E2E2E"/>
+
+                        <Grid ColumnDefinitions="*,*" Padding="0,10">
+                            <Label Grid.Column="0" Text="Rol"
+                                   TextColor="#888888" FontSize="13"/>
+                            <Label Grid.Column="1" x:Name="LblRolDetalle"
+                                   Text="--" TextColor="White"
+                                   FontSize="13" HorizontalOptions="End"/>
+                        </Grid>
+                        <BoxView HeightRequest="0.5" Color="#2E2E2E"/>
+
+                        <Grid ColumnDefinitions="*,*" Padding="0,10">
+                            <Label Grid.Column="0" Text="Miembro desde"
+                                   TextColor="#888888" FontSize="13"/>
+                            <Label Grid.Column="1" x:Name="LblFechaCreacion"
+                                   Text="--" TextColor="White"
+                                   FontSize="13" HorizontalOptions="End"/>
+                        </Grid>
+
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- Versión de la app -->
+                <Label Text="RocLand Security v1.0"
+                       TextColor="#444444"
+                       FontSize="11"
+                       HorizontalOptions="Center"
+                       Margin="0,8,0,0"/>
+
+            </VerticalStackLayout>
+        </ScrollView>
+
+        <!-- BOTÓN LOGOUT -->
+        <Border Grid.Row="2"
+                BackgroundColor="#1C1C1C"
+                StrokeThickness="0"
+                Padding="20,12,20,28">
+            <Button x:Name="BtnLogout"
+                    Text="Cerrar sesión"
+                    BackgroundColor="#2a0a0a"
+                    TextColor="#F09595"
+                    FontAttributes="Bold"
+                    FontSize="15"
+                    CornerRadius="12"
+                    HeightRequest="52"
+                    BorderColor="#A32D2D"
+                    BorderWidth="1"
+                    Clicked="OnLogoutClicked"/>
+        </Border>
+
+    </Grid>
+</ContentPage>

@@ -7,13 +7,15 @@ namespace RocLandSecurity
     {
         private readonly DatabaseService _db;
         private readonly SessionService _session;
+        private readonly IFlashlightService _flashlight;
         private bool _qrProcesando = false;
 
-        public MainPage(DatabaseService databaseService, SessionService sessionService)
+        public MainPage(DatabaseService databaseService, SessionService sessionService, IFlashlightService flashlight)
         {
             InitializeComponent();
             _db = databaseService;
             _session = sessionService;
+            _flashlight = flashlight;
 
             OnTabCredencialesClicked(null, null);
         }
@@ -24,6 +26,10 @@ namespace RocLandSecurity
 
         private void OnTabCredencialesClicked(object? sender, EventArgs? e)
         {
+            // Apagar linterna al salir del QR
+            if (_flashlight.IsOn)
+                _ = ApagarLinternaAsync();
+
             QrScanner.IsDetecting = false;
             _qrProcesando = false;
 
@@ -36,6 +42,9 @@ namespace RocLandSecurity
             TabQRIndicator.BackgroundColor = Colors.Transparent;
             BtnTabQR.TextColor = Color.FromArgb("#888888");
             BtnTabQR.FontAttributes = FontAttributes.None;
+
+            // Resetear icono de linterna
+            UpdateFlashlightIcon(false);
         }
 
         private async void OnTabQRClicked(object sender, EventArgs e)
@@ -60,6 +69,56 @@ namespace RocLandSecurity
             QrStatusLabel.IsVisible = false;
             _qrProcesando = false;
             QrScanner.IsDetecting = true;
+
+            // Verificar disponibilidad de linterna
+            if (!await _flashlight.IsAvailableAsync())
+            {
+                BtnFlash.IsEnabled = false;
+                BtnFlash.Opacity = 0.5;
+            }
+        }
+
+        // ─────────────────────────────────────────────
+        // LINTERNA
+        // ─────────────────────────────────────────────
+        private bool _flashOn = false;
+        private void OnFlashClicked(object sender, EventArgs e)
+        {
+            // Cambiar estado
+            _flashOn = !_flashOn;
+
+            // Aplicar al scanner
+            QrScanner.IsTorchOn = _flashOn;
+
+            // Actualizar icono visual
+            UpdateFlashlightIcon(_flashOn);
+        }
+
+        private void UpdateFlashlightIcon(bool isOn)
+        {
+            MainThread.BeginInvokeOnMainThread(() =>
+            {
+                if (isOn)
+                {
+                    BtnFlash.BackgroundColor = Color.FromArgb("#6DBF2E");
+                    BtnFlash.ImageSource = "flash_on.png";
+                }
+                else
+                {
+                    BtnFlash.BackgroundColor = Color.FromArgb("#333333");
+                    BtnFlash.ImageSource = "flash_off.png";
+                }
+            });
+        }
+
+        private async Task ApagarLinternaAsync()
+        {
+            try
+            {
+                await _flashlight.TurnOffAsync();
+                UpdateFlashlightIcon(false);
+            }
+            catch { }
         }
 
         // ─────────────────────────────────────────────
@@ -161,7 +220,11 @@ namespace RocLandSecurity
 
                     QrStatusLabel.Text = $"¡Bienvenido, {user.Nombre}!";
                     _session.IniciarSesion(user);
-                    await Task.Delay(600); // pequeña pausa para ver el mensaje
+
+                    // Apagar linterna antes de navegar
+                    await ApagarLinternaAsync();
+
+                    await Task.Delay(600);
                     await NavegerPorRol();
                 }
                 catch (Exception)
@@ -179,20 +242,17 @@ namespace RocLandSecurity
         // NAVEGACIÓN POR ROL
         // ─────────────────────────────────────────────
 
-        private Task NavegerPorRol()
+        private async Task NavegerPorRol()
         {
-            // Limpiar campos del formulario
             UsuarioEntry.Text = string.Empty;
             ContrasenaEntry.Text = string.Empty;
 
             var shell = Shell.Current as AppShell;
 
             if (_session.EsSupervisor)
-                shell?.MostrarTabBarSupervisor();
+                await (shell?.MostrarTabBarSupervisorAsync() ?? Task.CompletedTask);
             else
-                shell?.MostrarTabBarGuardia();
-
-            return Task.CompletedTask;
+                await (shell?.MostrarTabBarGuardiaAsync() ?? Task.CompletedTask);
         }
 
         // ─────────────────────────────────────────────

@@ -3,39 +3,36 @@
     x:Class="RocLandSecurity.AppShell"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-    xmlns:local="clr-namespace:RocLandSecurity"
     xmlns:guardia="clr-namespace:RocLandSecurity.Views.Guardia"
     xmlns:supervisor="clr-namespace:RocLandSecurity.Views.Supervisor"
+    xmlns:shared="clr-namespace:RocLandSecurity.Views.Shared"
     Shell.NavBarIsVisible="False"
-    Shell.TabBarIsVisible="False"
+    Shell.TabBarBackgroundColor="#111111"
+    Shell.TabBarForegroundColor="#6DBF2E"
+    Shell.TabBarUnselectedColor="#555555"
+    Shell.TabBarTitleColor="#6DBF2E"
     Title="RocLand Security">
 
-    <Shell.Resources>
-        <Style TargetType="TabBar">
-            <Setter Property="Shell.TabBarBackgroundColor" Value="#111111"/>
-            <Setter Property="Shell.TabBarForegroundColor" Value="#6DBF2E"/>
-            <Setter Property="Shell.TabBarUnselectedColor" Value="#555555"/>
-            <Setter Property="Shell.TabBarTitleColor"      Value="#6DBF2E"/>
-        </Style>
-    </Shell.Resources>
+    <!--
+        ARQUITECTURA DE NAVEGACIÓN
+        ─────────────────────────────────────────────────────────────────
+        El login (MainPage) NO vive en el Shell. Se muestra como una
+        página modal encima del Shell desde App.xaml.cs. Esto garantiza
+        que el TabBar solo aparezca abajo, sin ítems mezclados con Login.
 
-    <!-- ══════════════════════════════════════════════════════════════
-         RUTA LOGIN — Sin TabBar, sin NavBar
-         Siempre disponible como punto de entrada y para el logout
-    ══════════════════════════════════════════════════════════════ -->
-    <ShellContent
-        x:Name="LoginContent"
-        Title="Login"
-        Route="login"
-        ContentTemplate="{DataTemplate local:MainPage}"
-        Shell.NavBarIsVisible="False"
-        Shell.TabBarIsVisible="False"/>
+        Flujo:
+          1. App.xaml.cs crea Window con AppShell + PushModalAsync(MainPage)
+          2. Login exitoso → MainPage llama AppShell.MostrarTabBarGuardia/Supervisor
+             y hace PopModalAsync para revelar el Shell con el TabBar correcto.
+          3. Logout → PerfilPage llama AppShell.Logout() que hace PushModalAsync
+             con una nueva MainPage.
+        ─────────────────────────────────────────────────────────────────
+    -->
 
-    <!-- ══════════════════════════════════════════════════════════════
+    <!-- ══════════════════════════════════════════════════════════
          TAB BAR — GUARDIA
-         Se activa desde AppShell.xaml.cs al hacer login como guardia
-    ══════════════════════════════════════════════════════════════ -->
-    <TabBar x:Name="TabBarGuardia" IsVisible="False" Route="guardia">
+    ══════════════════════════════════════════════════════════ -->
+    <TabBar x:Name="TabBarGuardia" Route="guardia">
 
         <Tab Title="Rondines" Icon="tab_rondin.png" Route="home">
             <ShellContent
@@ -51,7 +48,6 @@
                 Route="guardiahistorial"
                 ContentTemplate="{DataTemplate guardia:GuardiaHomePage}"
                 Shell.NavBarIsVisible="False"/>
-            <!-- Reemplazar DataTemplate por HistorialGuardiaPage en Sprint 5 -->
         </Tab>
 
         <Tab Title="Incidencias" Icon="tab_incidencia.png" Route="incidencias">
@@ -60,25 +56,22 @@
                 Route="guardiaincidencias"
                 ContentTemplate="{DataTemplate guardia:GuardiaHomePage}"
                 Shell.NavBarIsVisible="False"/>
-            <!-- Reemplazar DataTemplate por ReportarIncidenciaPage en Sprint 4 -->
         </Tab>
 
         <Tab Title="Perfil" Icon="tab_perfil.png" Route="perfil">
             <ShellContent
                 Title="Perfil"
                 Route="guardiaperfil"
-                ContentTemplate="{DataTemplate guardia:GuardiaHomePage}"
+                ContentTemplate="{DataTemplate shared:PerfilPage}"
                 Shell.NavBarIsVisible="False"/>
-            <!-- Reemplazar DataTemplate por PerfilPage en Sprint 6 -->
         </Tab>
 
     </TabBar>
 
-    <!-- ══════════════════════════════════════════════════════════════
+    <!-- ══════════════════════════════════════════════════════════
          TAB BAR — SUPERVISOR
-         Se activa desde AppShell.xaml.cs al hacer login como supervisor
-    ══════════════════════════════════════════════════════════════ -->
-    <TabBar x:Name="TabBarSupervisor" IsVisible="False" Route="supervisor">
+    ══════════════════════════════════════════════════════════ -->
+    <TabBar x:Name="TabBarSupervisor" Route="supervisor">
 
         <Tab Title="Panel" Icon="tab_panel.png" Route="panel">
             <ShellContent
@@ -94,7 +87,6 @@
                 Route="supervisorincidencias"
                 ContentTemplate="{DataTemplate supervisor:SupervisorHomePage}"
                 Shell.NavBarIsVisible="False"/>
-            <!-- Reemplazar DataTemplate por IncidenciasPage en Sprint 4 -->
         </Tab>
 
         <Tab Title="Historial" Icon="tab_historial.png" Route="historial">
@@ -103,16 +95,14 @@
                 Route="supervisorhistorial"
                 ContentTemplate="{DataTemplate supervisor:SupervisorHomePage}"
                 Shell.NavBarIsVisible="False"/>
-            <!-- Reemplazar DataTemplate por HistorialPage en Sprint 5 -->
         </Tab>
 
         <Tab Title="Perfil" Icon="tab_perfil.png" Route="perfil">
             <ShellContent
                 Title="Perfil"
                 Route="supervisorperfil"
-                ContentTemplate="{DataTemplate supervisor:SupervisorHomePage}"
+                ContentTemplate="{DataTemplate shared:PerfilPage}"
                 Shell.NavBarIsVisible="False"/>
-            <!-- Reemplazar DataTemplate por PerfilPage en Sprint 6 -->
         </Tab>
 
     </TabBar>

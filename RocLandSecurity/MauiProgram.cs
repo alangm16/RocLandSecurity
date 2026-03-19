@@ -2,6 +2,7 @@
 using RocLandSecurity.Services;
 using RocLandSecurity.Views.Guardia;
 using RocLandSecurity.Views.Supervisor;
+using RocLandSecurity.Views.Shared;
 using ZXing.Net.Maui.Controls;
 using ZXing.Net.Maui;
 
@@ -37,16 +38,18 @@ namespace RocLandSecurity
             // ── Cadena de conexión ───────────────────────────────────────────
             // Para emulador: 10.0.2.2 apunta a localhost de la máquina host
             // Para dispositivo físico: usa la IP local de tu PC en la red WiFi
-            const string connectionString = @"Server=LAPTOP-2U33G2AH\SQLEXPRESS;Database=ROCLAND;User Id=sa;Password=12345678;TrustServerCertificate=True;";
+            const string connectionString = @"10.0.2.2,1433;Database=ROCLAND;User Id=sa;Password=12345678;TrustServerCertificate=True;";
 
             // ── Servicios (Singleton = una sola instancia en toda la app) ───
             builder.Services.AddSingleton(new DatabaseService(connectionString));
             builder.Services.AddSingleton<SessionService>();
+            builder.Services.AddSingleton<IFlashlightService, FlashlightService>();
 
             // ── Páginas (Transient = nueva instancia cada vez) ───────────────
             builder.Services.AddSingleton<MainPage>();
             builder.Services.AddTransient<GuardiaHomePage>();
             builder.Services.AddTransient<SupervisorHomePage>();
+            builder.Services.AddTransient<PerfilPage>();
 
 #if ANDROID
             ImageHandler.Mapper.AppendToMapping("NoTint_Android", (handler, view) =>

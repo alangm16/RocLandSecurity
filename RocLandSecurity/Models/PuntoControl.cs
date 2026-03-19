@@ -4,11 +4,11 @@ using System.Text;
 
 namespace RocLandSecurity.Models
 {
-    class PuntoControl
+    public class PuntoControl
     {
         public int ID { get; set; }
-        public string Nombre { get; set; }
-        public string QRCode { get; set; }
+        public string Nombre { get; set; } = string.Empty;
+        public string QRCode { get; set; } = string.Empty;
         public int Orden { get; set; }
 
         // Propiedades de navegacion

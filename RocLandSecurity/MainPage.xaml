@@ -186,7 +186,7 @@
         </ScrollView>
 
         <!-- ═══════════════════════════════════════════════════ -->
-        <!-- CAPA 1  ESCÁNER QR (pantalla completa, encima)      -->
+        <!-- CAPA 1  ESCÁNER QR      -->
         <!-- ═══════════════════════════════════════════════════ -->
         <Grid x:Name="PanelQR"
               IsVisible="False"
@@ -273,6 +273,19 @@
                        Margin="0,6,0,0"/>
             </VerticalStackLayout>
 
+            <!-- BOTÓN FLASH  -->
+            <Button x:Name="BtnFlash"
+                WidthRequest="40"
+                HeightRequest="40"
+                BackgroundColor="Transparent"
+                BorderColor="Transparent"
+                ImageSource="flash_off.png"
+                HorizontalOptions="End"
+                VerticalOptions="Start"
+                Margin="0,110,20,0"
+                Clicked="OnFlashClicked"
+                ZIndex="10"/>
+
             <VerticalStackLayout
                 VerticalOptions="Center"
                 HorizontalOptions="Center"
@@ -280,7 +293,7 @@
                             Spacing="10"
                 ZIndex="20">
 
-                            <Button
+                <Button
                     Text="Volver"
                     FontSize="16"
                     FontAttributes="Bold"
