@@ -1,0 +1,190 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="RocLandSecurity.Views.Supervisor.SupervisorHistorialPage"
+             BackgroundColor="#111111"
+             Shell.NavBarIsVisible="False">
+
+    <ContentPage.Resources>
+        <ResourceDictionary>
+            <Color x:Key="AccentGreen">#6DBF2E</Color>
+            <Color x:Key="TextPrimary">#FFFFFF</Color>
+            <Color x:Key="TextSecondary">#888888</Color>
+            <Color x:Key="BorderColor">#2A2A2A</Color>
+        </ResourceDictionary>
+    </ContentPage.Resources>
+
+    <Grid RowDefinitions="Auto,Auto,*">
+
+        <!-- ══ HEADER ════════════════════════════════════════════════════ -->
+        <Grid Grid.Row="0"
+              BackgroundColor="#1A1A1A"
+              Padding="20,48,20,16"
+              ColumnDefinitions="*,44">
+
+            <VerticalStackLayout Grid.Column="0" Spacing="2">
+                <Label Text="Historial"
+                       TextColor="{StaticResource TextPrimary}"
+                       FontSize="22" FontAttributes="Bold"/>
+                <Label Text="Selecciona una fecha para ver detalles"
+                       TextColor="{StaticResource TextSecondary}"
+                       FontSize="13"/>
+            </VerticalStackLayout>
+
+            <!-- Botón refrescar con PNG -->
+            <Border Grid.Column="1"
+                    BackgroundColor="#252525"
+                    StrokeThickness="0"
+                    WidthRequest="36" HeightRequest="36"
+                    HorizontalOptions="Center"
+                    VerticalOptions="Center">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="10"/>
+                </Border.StrokeShape>
+                <Image Source="refresh.png"
+                       WidthRequest="18" HeightRequest="18"
+                       HorizontalOptions="Center"
+                       VerticalOptions="Center">
+                    <Image.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnRefrescarClicked"/>
+                    </Image.GestureRecognizers>
+                </Image>
+            </Border>
+        </Grid>
+
+        <!-- ══ CALENDARIO ════════════════════════════════════════════════ -->
+        <VerticalStackLayout Grid.Row="1"
+                             BackgroundColor="#1A1A1A"
+                             Padding="16,12,16,14"
+                             Spacing="10">
+
+            <!-- Navegación mes -->
+            <Grid ColumnDefinitions="44,*,44">
+                <Border Grid.Column="0"
+                        BackgroundColor="#252525"
+                        StrokeThickness="0"
+                        WidthRequest="36" HeightRequest="36"
+                        HorizontalOptions="Center"
+                        VerticalOptions="Center">
+                    <Border.StrokeShape><RoundRectangle CornerRadius="10"/></Border.StrokeShape>
+                    <Label Text="‹"
+                           TextColor="{StaticResource TextPrimary}"
+                           FontSize="20" FontAttributes="Bold"
+                           HorizontalOptions="Center" VerticalOptions="Center">
+                        <Label.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnMesAnteriorClicked"/>
+                        </Label.GestureRecognizers>
+                    </Label>
+                </Border>
+
+                <Label Grid.Column="1"
+                       x:Name="LblMesActual"
+                       Text="--"
+                       TextColor="{StaticResource TextPrimary}"
+                       FontSize="15" FontAttributes="Bold"
+                       HorizontalOptions="Center"
+                       VerticalOptions="Center"/>
+
+                <Border Grid.Column="2"
+                        BackgroundColor="#252525"
+                        StrokeThickness="0"
+                        WidthRequest="36" HeightRequest="36"
+                        HorizontalOptions="Center"
+                        VerticalOptions="Center">
+                    <Border.StrokeShape><RoundRectangle CornerRadius="10"/></Border.StrokeShape>
+                    <Label Text="›"
+                           TextColor="{StaticResource TextPrimary}"
+                           FontSize="20" FontAttributes="Bold"
+                           HorizontalOptions="Center" VerticalOptions="Center">
+                        <Label.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnMesSiguienteClicked"/>
+                        </Label.GestureRecognizers>
+                    </Label>
+                </Border>
+            </Grid>
+
+            <!-- Cabecera días semana -->
+            <Grid ColumnDefinitions="*,*,*,*,*,*,*" ColumnSpacing="4">
+                <Label Grid.Column="0" Text="L" TextColor="{StaticResource TextSecondary}"
+                       FontSize="12" FontAttributes="Bold" HorizontalOptions="Center"/>
+                <Label Grid.Column="1" Text="M" TextColor="{StaticResource TextSecondary}"
+                       FontSize="12" FontAttributes="Bold" HorizontalOptions="Center"/>
+                <Label Grid.Column="2" Text="M" TextColor="{StaticResource TextSecondary}"
+                       FontSize="12" FontAttributes="Bold" HorizontalOptions="Center"/>
+                <Label Grid.Column="3" Text="J" TextColor="{StaticResource TextSecondary}"
+                       FontSize="12" FontAttributes="Bold" HorizontalOptions="Center"/>
+                <Label Grid.Column="4" Text="V" TextColor="{StaticResource TextSecondary}"
+                       FontSize="12" FontAttributes="Bold" HorizontalOptions="Center"/>
+                <Label Grid.Column="5" Text="S" TextColor="{StaticResource TextSecondary}"
+                       FontSize="12" FontAttributes="Bold" HorizontalOptions="Center"/>
+                <Label Grid.Column="6" Text="D" TextColor="{StaticResource TextSecondary}"
+                       FontSize="12" FontAttributes="Bold" HorizontalOptions="Center"/>
+            </Grid>
+
+            <!-- Grid de días — construido TOTALMENTE en code-behind -->
+            <Grid x:Name="GridDias"
+                  ColumnDefinitions="*,*,*,*,*,*,*"
+                  ColumnSpacing="4"
+                  RowSpacing="6"/>
+
+        </VerticalStackLayout>
+
+        <!-- ══ CONTENIDO ═════════════════════════════════════════════════ -->
+        <ScrollView Grid.Row="2">
+            <VerticalStackLayout Padding="16,16,16,32" Spacing="0">
+
+                <ActivityIndicator x:Name="LoadingIndicator"
+                                   IsRunning="True" IsVisible="True"
+                                   Color="{StaticResource AccentGreen}"
+                                   Margin="0,32,0,0"/>
+
+                <VerticalStackLayout x:Name="PanelContenido"
+                                     IsVisible="False" Spacing="16">
+
+                    <!-- Sin actividad -->
+                    <VerticalStackLayout x:Name="PanelSinActividad"
+                                         IsVisible="False"
+                                         HorizontalOptions="Center"
+                                         Spacing="10"
+                                         Margin="0,24,0,0">
+                        <Image Source="calendar.png"
+                               WidthRequest="56" HeightRequest="56"
+                               HorizontalOptions="Center"
+                               Opacity="0.4"/>
+                        <Label Text="Sin actividad registrada"
+                               TextColor="{StaticResource TextPrimary}"
+                               FontSize="16" FontAttributes="Bold"
+                               HorizontalOptions="Center"/>
+                        <Label Text="No hay turnos ni incidencias en esta fecha."
+                               TextColor="{StaticResource TextSecondary}"
+                               FontSize="13"
+                               HorizontalOptions="Center"
+                               HorizontalTextAlignment="Center"/>
+                    </VerticalStackLayout>
+
+                    <!-- Lista turnos -->
+                    <VerticalStackLayout x:Name="ListaTurnos" Spacing="16"/>
+
+                </VerticalStackLayout>
+
+            </VerticalStackLayout>
+        </ScrollView>
+
+        <!-- Toast -->
+        <Frame x:Name="ToastFrame"
+               Grid.Row="0" Grid.RowSpan="3"
+               BackgroundColor="#FF5555"
+               CornerRadius="12" Padding="14,10"
+               IsVisible="False"
+               HorizontalOptions="Center"
+               VerticalOptions="Start"
+               Margin="20,56,20,0"
+               HasShadow="True" Opacity="0"
+               ZIndex="100">
+            <Label x:Name="ToastLabel"
+                   TextColor="White" FontAttributes="Bold"
+                   FontSize="13" HorizontalOptions="Center"/>
+        </Frame>
+
+    </Grid>
+</ContentPage>

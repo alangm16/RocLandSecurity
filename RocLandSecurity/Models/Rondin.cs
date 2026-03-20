@@ -47,7 +47,7 @@ namespace RocLandSecurity.Models
         public string EstadoColor => Estado switch
         {
             0 => "#FAC775",
-            1 => "#85B7EB",
+            1 => "#FFA500",
             2 => "#97C459",
             3 => "#F09595",
             4 => "#F09595",

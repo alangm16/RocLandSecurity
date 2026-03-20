@@ -1,4 +1,5 @@
 ﻿using RocLandSecurity.Views.Guardia;
+using RocLandSecurity.Views.Supervisor;
 
 namespace RocLandSecurity
 {
@@ -10,7 +11,8 @@ namespace RocLandSecurity
 
             // Rutas de navegación programática (no declaradas en XAML)
             Routing.RegisterRoute("rondinactivo", typeof(RondinActivoPage));
-            // Sprint 4: Routing.RegisterRoute("reportarincidencia", typeof(ReportarIncidenciaPage));
+            Routing.RegisterRoute("reportarincidencia", typeof(ReportarIncidenciaPage));
+            Routing.RegisterRoute("supervisorincidencias", typeof(SupervisorIncidenciasPage));
         }
 
         public async Task MostrarTabBarGuardiaAsync()

@@ -1,4 +1,4 @@
-﻿using Microsoft.Data.SqlClient;
+using Microsoft.Data.SqlClient;
 using RocLandSecurity.Models;
 
 namespace RocLandSecurity.Services
@@ -163,21 +163,23 @@ namespace RocLandSecurity.Services
         }
 
         // ═══════════════════════════════════════════════════════════════════
-        // RONDINES — FLUJO ACTIVO (Sprint 3)
+        // RONDINES — FLUJO ACTIVO
         // ═══════════════════════════════════════════════════════════════════
 
         /// <summary>
-        /// Devuelve la HoraProgramada de un rondín para mostrar en el título.
+        /// Devuelve HoraProgramada y TurnoID de un rondín en una sola query.
         /// </summary>
-        public async Task<DateTime> GetHoraProgramadaRondinAsync(int rondinID)
+        public async Task<(DateTime HoraProgramada, int TurnoID)> GetDatosRondinAsync(int rondinID)
         {
             using var conn = new SqlConnection(connectionString);
             await conn.OpenAsync();
-            const string q = "SELECT HoraProgramada FROM TBL_ROCLAND_SECURITY_RONDINES WHERE ID = @id";
+            const string q = "SELECT HoraProgramada, TurnoID FROM TBL_ROCLAND_SECURITY_RONDINES WHERE ID = @id";
             using var cmd = new SqlCommand(q, conn);
             cmd.Parameters.AddWithValue("@id", rondinID);
-            var result = await cmd.ExecuteScalarAsync();
-            return result is DateTime dt ? dt : DateTime.Now;
+            using var reader = await cmd.ExecuteReaderAsync();
+            if (await reader.ReadAsync())
+                return (reader.GetDateTime(0), reader.GetInt32(1));
+            return (DateTime.Now, 0);
         }
 
         /// <summary>
@@ -206,11 +208,8 @@ namespace RocLandSecurity.Services
             var estadoActual = reader.GetInt32(1);
             reader.Close();
 
-            // Si ya está en progreso, solo continuar (retomar)
-            if (estadoActual == 1) return;
-
-            if (estadoActual != 0)
-                throw new InvalidOperationException("Este rondín ya fue finalizado.");
+            // Ya iniciado o finalizado — solo continuar, no modificar estado
+            if (estadoActual >= 1) return;
 
             // Validación de horario (solo en modo estricto)
             if (modoEstricto)
@@ -412,6 +411,505 @@ namespace RocLandSecurity.Services
         }
 
         // ═══════════════════════════════════════════════════════════════════
+        // INCIDENCIAS
+        // ═══════════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Devuelve todos los puntos de control ordenados, para el Picker de ubicación.
+        /// </summary>
+        public async Task<List<PuntoControl>> GetPuntosControlAsync()
+        {
+            using var conn = new SqlConnection(connectionString);
+            await conn.OpenAsync();
+            const string q = @"
+                SELECT ID, Nombre, QRCode, Orden, Latitud, Longitud
+                FROM TBL_ROCLAND_SECURITY_PUNTOSCONTROL
+                ORDER BY Orden";
+            using var cmd = new SqlCommand(q, conn);
+            using var reader = await cmd.ExecuteReaderAsync();
+            var lista = new List<PuntoControl>();
+            while (await reader.ReadAsync())
+                lista.Add(new PuntoControl
+                {
+                    ID = reader.GetInt32(0),
+                    Nombre = reader.GetString(1),
+                    QRCode = reader.GetString(2),
+                    Orden = reader.GetInt32(3),
+                    Latitud = reader.GetDouble(4),
+                    Longitud = reader.GetDouble(5),
+                });
+            return lista;
+        }
+
+        /// <summary>
+        /// Inserta una nueva incidencia. Si PuntoID o RondinID son null los guarda como NULL.
+        /// </summary>
+        public async Task CrearIncidenciaAsync(Incidencia inc)
+        {
+            using var conn = new SqlConnection(connectionString);
+            await conn.OpenAsync();
+            const string q = @"
+                INSERT INTO TBL_ROCLAND_SECURITY_INCIDENCIAS
+                    (TurnoID, RondinID, PuntoID, GuardiaReportaID,
+                     Descripcion, FechaReporte, Estado, FechaModificacion)
+                VALUES
+                    (@turnoID, @rondinID, @puntoID, @guardiaID,
+                     @desc, GETDATE(), 0, GETDATE())";
+            using var cmd = new SqlCommand(q, conn);
+            cmd.Parameters.AddWithValue("@turnoID", inc.TurnoID);
+            cmd.Parameters.AddWithValue("@rondinID", (object?)inc.RondinID ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@puntoID", (object?)inc.PuntoID ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@guardiaID", inc.GuardiaReportaID);
+            cmd.Parameters.AddWithValue("@desc", inc.Descripcion);
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+            // Las incidencias son independientes del estado del rondín.
+            // El supervisor las ve en su panel sin alterar el flujo del guardia.
+
+            /// <summary>
+            /// Obtiene todas las incidencias de la semana actual (últimos 7 días)
+            /// para la vista de supervisor, ordenadas por fecha descendente.
+            /// </summary>
+        public async Task<List<IncidenciaSupervisorItem>> GetIncidenciasSemanaAsync()
+        {
+            using var conn = new SqlConnection(connectionString);
+            await conn.OpenAsync();
+
+            const string query = @"
+            SELECT 
+                i.ID,
+                i.TurnoID,
+                i.RondinID,
+                i.PuntoID,
+                i.GuardiaReportaID,
+                i.Descripcion,
+                i.FechaReporte,
+                i.Estado,
+                i.NotaResolucion,
+                i.FechaResolucion,
+                i.SupervisorResuelveID,
+                ISNULL(u.Nombre, 'Desconocido') AS NombreGuardia,
+                ISNULL(pc.Nombre, '') AS NombrePunto,
+                pc.Orden AS OrdenPunto
+            FROM TBL_ROCLAND_SECURITY_INCIDENCIAS i
+            INNER JOIN TBL_ROCLAND_SECURITY_USUARIOS u ON i.GuardiaReportaID = u.ID
+            LEFT JOIN TBL_ROCLAND_SECURITY_PUNTOSCONTROL pc ON i.PuntoID = pc.ID
+            WHERE i.FechaReporte >= DATEADD(DAY, -7, CAST(GETDATE() AS DATE))
+              AND i.FechaReporte < DATEADD(DAY, 1, CAST(GETDATE() AS DATE))
+            ORDER BY i.FechaReporte DESC, i.ID DESC";
+
+            using var cmd = new SqlCommand(query, conn);
+            using var reader = await cmd.ExecuteReaderAsync();
+
+            var lista = new List<IncidenciaSupervisorItem>();
+            while (await reader.ReadAsync())
+            {
+                lista.Add(new IncidenciaSupervisorItem
+                {
+                    ID = reader.GetInt32(0),
+                    TurnoID = reader.GetInt32(1),
+                    RondinID = reader.IsDBNull(2) ? null : reader.GetInt32(2),
+                    PuntoID = reader.IsDBNull(3) ? null : reader.GetInt32(3),
+                    GuardiaReportaID = reader.GetInt32(4),
+                    Descripcion = reader.GetString(5),
+                    FechaReporte = reader.GetDateTime(6),
+                    Estado = reader.GetInt32(7),
+                    NotaResolucion = reader.IsDBNull(8) ? null : reader.GetString(8),
+                    FechaResolucion = reader.IsDBNull(9) ? null : reader.GetDateTime(9),
+                    SupervisorResuelveID = reader.IsDBNull(10) ? null : reader.GetInt32(10),
+                    NombreGuardia = reader.GetString(11),
+                    NombrePunto = reader.GetString(12),
+                    OrdenPunto = reader.IsDBNull(13) ? null : reader.GetInt32(13)
+                });
+            }
+
+            return lista;
+        }
+
+        /// <summary>
+        /// Resuelve una incidencia (marcar como resuelta).
+        /// </summary>
+        public async Task ResolverIncidenciaAsync(int incidenciaID, int supervisorID, string notaResolucion)
+        {
+            using var conn = new SqlConnection(connectionString);
+            await conn.OpenAsync();
+
+            const string query = @"
+        UPDATE TBL_ROCLAND_SECURITY_INCIDENCIAS
+        SET Estado = 1,
+            SupervisorResuelveID = @supervisorID,
+            FechaResolucion = GETDATE(),
+            NotaResolucion = @nota,
+            FechaModificacion = GETDATE()
+        WHERE ID = @incidenciaID AND Estado = 0";
+
+            using var cmd = new SqlCommand(query, conn);
+            cmd.Parameters.AddWithValue("@incidenciaID", incidenciaID);
+            cmd.Parameters.AddWithValue("@supervisorID", supervisorID);
+            cmd.Parameters.AddWithValue("@nota", notaResolucion);
+
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // HISTORIAL GUARDIA
+        // ═══════════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Devuelve los rondines finalizados del guardia (todos sus turnos)
+        /// ordenados del más reciente al más antiguo, con sus incidencias anidadas.
+        /// </summary>
+        /// <summary>
+        /// Devuelve el historial del guardia:
+        /// - Todos los rondines iniciados (con o sin finalizar) que tengan
+        ///   actividad (HoraInicio != null) O incidencias vinculadas.
+        /// - Rondines finalizados aunque no tengan incidencias.
+        /// - Incidencias reportadas fuera de rondín (RondinID = NULL)
+        ///   agrupadas bajo el rondín más cercano del mismo turno.
+        /// Ordenado del más reciente al más antiguo.
+        /// </summary>
+        public async Task<List<RondinHistorialItem>> GetHistorialGuardiaAsync(int guardiaID)
+        {
+            using var conn = new SqlConnection(connectionString);
+            await conn.OpenAsync();
+
+            // 1. Rondines que tienen actividad real: iniciados o finalizados
+            const string qRondines = @"
+                SELECT
+                    r.ID, r.TurnoID, r.HoraProgramada, r.HoraInicio, r.HoraFin, r.Estado,
+                    (SELECT COUNT(*) FROM TBL_ROCLAND_SECURITY_RONDINESPUNTOS rp
+                     WHERE rp.RondinID = r.ID AND rp.Estado = 1) AS PuntosVisitados,
+                    (SELECT COUNT(*) FROM TBL_ROCLAND_SECURITY_RONDINESPUNTOS rp
+                     WHERE rp.RondinID = r.ID) AS PuntosTotal,
+                    (SELECT COUNT(*) FROM TBL_ROCLAND_SECURITY_INCIDENCIAS i
+                     WHERE i.RondinID = r.ID) AS TotalIncidencias
+                FROM TBL_ROCLAND_SECURITY_RONDINES r
+                WHERE r.GuardiaID = @guardiaID
+                  AND (
+                      r.Estado >= 2                   -- finalizados
+                      OR r.HoraInicio IS NOT NULL      -- iniciados aunque no finalizados
+                      OR EXISTS (                      -- tienen incidencias vinculadas
+                          SELECT 1 FROM TBL_ROCLAND_SECURITY_INCIDENCIAS i
+                          WHERE i.RondinID = r.ID)
+                  )
+                ORDER BY r.HoraProgramada DESC";
+
+            using var cmdR = new SqlCommand(qRondines, conn);
+            cmdR.Parameters.AddWithValue("@guardiaID", guardiaID);
+
+            var items = new List<RondinHistorialItem>();
+            using (var reader = await cmdR.ExecuteReaderAsync())
+            {
+                while (await reader.ReadAsync())
+                {
+                    items.Add(new RondinHistorialItem
+                    {
+                        RondinID         = reader.GetInt32(0),
+                        TurnoID          = reader.GetInt32(1),
+                        HoraProgramada   = reader.GetDateTime(2),
+                        HoraInicio       = reader.IsDBNull(3) ? null : reader.GetDateTime(3),
+                        HoraFin          = reader.IsDBNull(4) ? null : reader.GetDateTime(4),
+                        Estado           = reader.GetInt32(5),
+                        PuntosVisitados  = reader.GetInt32(6),
+                        PuntosTotal      = reader.GetInt32(7),
+                        TotalIncidencias = reader.GetInt32(8),
+                    });
+                }
+            }
+
+            // 2. Incidencias de los rondines cargados
+            if (items.Count > 0)
+            {
+                var ids = string.Join(",", items.Select(i => i.RondinID));
+                string qIncRondin = $@"
+                    SELECT i.ID, i.RondinID, i.Descripcion, i.FechaReporte,
+                           ISNULL(pc.Nombre, '') AS NombrePunto
+                    FROM TBL_ROCLAND_SECURITY_INCIDENCIAS i
+                    LEFT JOIN TBL_ROCLAND_SECURITY_PUNTOSCONTROL pc ON i.PuntoID = pc.ID
+                    WHERE i.RondinID IN ({ids})
+                    ORDER BY i.FechaReporte";
+
+                using var cmdI = new SqlCommand(qIncRondin, conn);
+                var dict = items.ToDictionary(i => i.RondinID);
+                using (var reader = await cmdI.ExecuteReaderAsync())
+                {
+                    while (await reader.ReadAsync())
+                    {
+                        int rondinID = reader.GetInt32(1);
+                        if (dict.TryGetValue(rondinID, out var item))
+                            item.Incidencias.Add(new Incidencia
+                            {
+                                ID           = reader.GetInt32(0),
+                                Descripcion  = reader.GetString(2),
+                                FechaReporte = reader.GetDateTime(3),
+                                NombrePunto  = reader.GetString(4),
+                            });
+                    }
+                }
+            }
+
+            // 3. Incidencias reportadas FUERA de rondín (RondinID = NULL)
+            //    del mismo guardia. Se agrupan bajo el rondín del turno más
+            //    cercano en tiempo, o se agregan como entrada independiente.
+            const string qIncSueltas = @"
+                SELECT i.ID, i.TurnoID, i.Descripcion, i.FechaReporte,
+                       ISNULL(pc.Nombre, '') AS NombrePunto
+                FROM TBL_ROCLAND_SECURITY_INCIDENCIAS i
+                LEFT JOIN TBL_ROCLAND_SECURITY_PUNTOSCONTROL pc ON i.PuntoID = pc.ID
+                WHERE i.RondinID IS NULL
+                  AND i.GuardiaReportaID = @guardiaID
+                ORDER BY i.FechaReporte DESC";
+
+            using var cmdS = new SqlCommand(qIncSueltas, conn);
+            cmdS.Parameters.AddWithValue("@guardiaID", guardiaID);
+            var incSueltas = new List<Incidencia>();
+            using (var reader = await cmdS.ExecuteReaderAsync())
+            {
+                while (await reader.ReadAsync())
+                    incSueltas.Add(new Incidencia
+                    {
+                        ID           = reader.GetInt32(0),
+                        TurnoID      = reader.GetInt32(1),
+                        Descripcion  = reader.GetString(2),
+                        FechaReporte = reader.GetDateTime(3),
+                        NombrePunto  = reader.GetString(4),
+                    });
+            }
+
+            // Asignar incidencias sueltas al rondín más cercano del mismo turno,
+            // o agregarlas como item independiente si no hay rondín del turno
+            foreach (var inc in incSueltas)
+            {
+                var rondinDelTurno = items
+                    .Where(r => r.TurnoID == inc.TurnoID)
+                    .OrderBy(r => Math.Abs((r.HoraProgramada - inc.FechaReporte).TotalMinutes))
+                    .FirstOrDefault();
+
+                if (rondinDelTurno != null)
+                {
+                    rondinDelTurno.IncidenciasSinRondin.Add(inc);
+                    rondinDelTurno.TotalIncidencias++;
+                }
+                else
+                {
+                    // No hay rondín del turno — agregar como item independiente
+                    items.Add(new RondinHistorialItem
+                    {
+                        RondinID         = -1,   // -1 = solo incidencias, sin rondín
+                        HoraProgramada   = inc.FechaReporte,
+                        TurnoID          = inc.TurnoID,
+                        TotalIncidencias = 1,
+                        IncidenciasSinRondin = new List<Incidencia> { inc },
+                    });
+                }
+            }
+
+            // Ordenar final por fecha desc
+            return items.OrderByDescending(i => i.HoraProgramada).ToList();
+        }
+
+        /// <summary>
+        /// Obtiene el historial completo para una fecha específica (supervisor).
+        /// Incluye todos los turnos de ese día, sus rondines e incidencias.
+        /// </summary>
+        public async Task<HistorialSupervisorDia> GetHistorialPorFechaAsync(DateTime fecha)
+        {
+            var resultado = new HistorialSupervisorDia
+            {
+                Fecha = fecha.Date
+            };
+
+            using var conn = new SqlConnection(connectionString);
+            await conn.OpenAsync();
+
+            // Obtener turnos de la fecha
+            const string queryTurnos = @"
+        SELECT 
+            t.ID,
+            t.GuardiaID,
+            t.HoraInicio,
+            t.HoraFin,
+            u.Nombre AS NombreGuardia
+        FROM TBL_ROCLAND_SECURITY_TURNOS t
+        INNER JOIN TBL_ROCLAND_SECURITY_USUARIOS u ON t.GuardiaID = u.ID
+        WHERE t.Fecha = @fecha
+        ORDER BY t.HoraInicio";
+
+            using var cmdTurnos = new SqlCommand(queryTurnos, conn);
+            cmdTurnos.Parameters.AddWithValue("@fecha", fecha.Date);
+
+            var turnos = new List<HistorialTurnoDia>();
+            using (var reader = await cmdTurnos.ExecuteReaderAsync())
+            {
+                while (await reader.ReadAsync())
+                {
+                    turnos.Add(new HistorialTurnoDia
+                    {
+                        TurnoID = reader.GetInt32(0),
+                        GuardiaID = reader.GetInt32(1),
+                        HoraInicio = TimeOnly.FromTimeSpan(reader.GetTimeSpan(2)),
+                        HoraFin = TimeOnly.FromTimeSpan(reader.GetTimeSpan(3)),
+                        NombreGuardia = reader.GetString(4)
+                    });
+                }
+            }
+
+            // Para cada turno, obtener sus rondines e incidencias
+            foreach (var turno in turnos)
+            {
+                // Obtener rondines del turno
+                const string queryRondines = @"
+            SELECT 
+                r.ID,
+                r.HoraProgramada,
+                r.HoraInicio,
+                r.HoraFin,
+                r.Estado,
+                (SELECT COUNT(*) FROM TBL_ROCLAND_SECURITY_RONDINESPUNTOS rp
+                 WHERE rp.RondinID = r.ID AND rp.Estado = 1) AS PuntosVisitados,
+                (SELECT COUNT(*) FROM TBL_ROCLAND_SECURITY_RONDINESPUNTOS rp
+                 WHERE rp.RondinID = r.ID) AS PuntosTotal,
+                (SELECT COUNT(*) FROM TBL_ROCLAND_SECURITY_INCIDENCIAS i
+                 WHERE i.RondinID = r.ID) AS IncidenciasCount
+            FROM TBL_ROCLAND_SECURITY_RONDINES r
+            WHERE r.TurnoID = @turnoID
+            ORDER BY r.HoraProgramada";
+
+                using var cmdRondines = new SqlCommand(queryRondines, conn);
+                cmdRondines.Parameters.AddWithValue("@turnoID", turno.TurnoID);
+
+                using (var reader = await cmdRondines.ExecuteReaderAsync())
+                {
+                    while (await reader.ReadAsync())
+                    {
+                        turno.Rondines.Add(new HistorialRondinDia
+                        {
+                            ID = reader.GetInt32(0),
+                            HoraProgramada = reader.GetDateTime(1),
+                            HoraInicio = reader.IsDBNull(2) ? null : reader.GetDateTime(2),
+                            HoraFin = reader.IsDBNull(3) ? null : reader.GetDateTime(3),
+                            Estado = reader.GetInt32(4),
+                            PuntosVisitados = reader.GetInt32(5),
+                            PuntosTotal = reader.GetInt32(6),
+                            IncidenciasCount = reader.GetInt32(7)
+                        });
+                    }
+                }
+
+                // Cargar incidencias de cada rondín para mostrar descripción
+                foreach (var rondin in turno.Rondines.Where(r => r.TieneIncidencias))
+                {
+                    const string qIncRondin = @"
+                        SELECT i.ID, i.Descripcion, i.FechaReporte,
+                               ISNULL(pc.Nombre, '') AS NombrePunto,
+                               i.Estado, i.NotaResolucion
+                        FROM TBL_ROCLAND_SECURITY_INCIDENCIAS i
+                        LEFT JOIN TBL_ROCLAND_SECURITY_PUNTOSCONTROL pc ON i.PuntoID = pc.ID
+                        WHERE i.RondinID = @rID
+                        ORDER BY i.FechaReporte";
+                    using var cmdRI = new SqlCommand(qIncRondin, conn);
+                    cmdRI.Parameters.AddWithValue("@rID", rondin.ID);
+                    using var riReader = await cmdRI.ExecuteReaderAsync();
+                    while (await riReader.ReadAsync())
+                    {
+                        rondin.Incidencias.Add(new IncidenciaSupervisorItem
+                        {
+                            ID           = riReader.GetInt32(0),
+                            Descripcion  = riReader.GetString(1),
+                            FechaReporte = riReader.GetDateTime(2),
+                            NombrePunto  = riReader.GetString(3),
+                            Estado       = riReader.GetInt32(4),
+                            NotaResolucion = riReader.IsDBNull(5) ? null : riReader.GetString(5),
+                        });
+                    }
+                }
+
+                // Obtener incidencias del turno (sin rondín asociado)
+                const string queryIncidencias = @"
+            SELECT 
+                i.ID,
+                i.TurnoID,
+                i.RondinID,
+                i.PuntoID,
+                i.GuardiaReportaID,
+                i.Descripcion,
+                i.FechaReporte,
+                i.Estado,
+                i.NotaResolucion,
+                i.FechaResolucion,
+                i.SupervisorResuelveID,
+                ISNULL(u.Nombre, 'Desconocido') AS NombreGuardia,
+                ISNULL(pc.Nombre, '') AS NombrePunto,
+                pc.Orden AS OrdenPunto
+            FROM TBL_ROCLAND_SECURITY_INCIDENCIAS i
+            INNER JOIN TBL_ROCLAND_SECURITY_USUARIOS u ON i.GuardiaReportaID = u.ID
+            LEFT JOIN TBL_ROCLAND_SECURITY_PUNTOSCONTROL pc ON i.PuntoID = pc.ID
+            WHERE i.TurnoID = @turnoID AND i.RondinID IS NULL
+            ORDER BY i.FechaReporte DESC";
+
+                using var cmdInc = new SqlCommand(queryIncidencias, conn);
+                cmdInc.Parameters.AddWithValue("@turnoID", turno.TurnoID);
+
+                using (var reader = await cmdInc.ExecuteReaderAsync())
+                {
+                    while (await reader.ReadAsync())
+                    {
+                        turno.Incidencias.Add(new IncidenciaSupervisorItem
+                        {
+                            ID = reader.GetInt32(0),
+                            TurnoID = reader.GetInt32(1),
+                            RondinID = reader.IsDBNull(2) ? null : reader.GetInt32(2),
+                            PuntoID = reader.IsDBNull(3) ? null : reader.GetInt32(3),
+                            GuardiaReportaID = reader.GetInt32(4),
+                            Descripcion = reader.GetString(5),
+                            FechaReporte = reader.GetDateTime(6),
+                            Estado = reader.GetInt32(7),
+                            NotaResolucion = reader.IsDBNull(8) ? null : reader.GetString(8),
+                            FechaResolucion = reader.IsDBNull(9) ? null : reader.GetDateTime(9),
+                            SupervisorResuelveID = reader.IsDBNull(10) ? null : reader.GetInt32(10),
+                            NombreGuardia = reader.GetString(11),
+                            NombrePunto = reader.GetString(12),
+                            OrdenPunto = reader.IsDBNull(13) ? null : reader.GetInt32(13)
+                        });
+                    }
+                }
+
+                resultado.Turnos.Add(turno);
+            }
+
+            return resultado;
+        }
+
+        /// <summary>
+        /// Obtiene las fechas que tienen actividad (turnos o incidencias) para el calendario.
+        /// </summary>
+        public async Task<List<DateTime>> GetFechasConActividadAsync()
+        {
+            using var conn = new SqlConnection(connectionString);
+            await conn.OpenAsync();
+
+            const string query = @"
+                SELECT DISTINCT CAST(Fecha AS DATE) as FechaActividad
+                FROM TBL_ROCLAND_SECURITY_TURNOS
+                UNION
+                SELECT DISTINCT CAST(FechaReporte AS DATE) as FechaActividad
+                FROM TBL_ROCLAND_SECURITY_INCIDENCIAS
+                ORDER BY FechaActividad DESC";
+
+            using var cmd = new SqlCommand(query, conn);
+            var fechas = new List<DateTime>();
+
+            using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                fechas.Add(reader.GetDateTime(0));
+            }
+
+            return fechas;
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
         // MAPPERS
         // ═══════════════════════════════════════════════════════════════════
 
@@ -512,5 +1010,51 @@ namespace RocLandSecurity.Services
             NombrePunto = r.GetString(9),
             OrdenPunto = r.GetInt32(10)
         };
+
+        public async Task<Turno?> GetTurnoActivoAsync()
+        {
+            try
+            {
+                const string query = @"
+            SELECT 
+                t.ID,
+                t.Fecha,
+                t.HoraInicio,
+                t.HoraFin,
+                t.GuardiaID,
+                u.Nombre as NombreGuardia
+            FROM TBL_ROCLAND_SECURITY_TURNOS t
+            INNER JOIN TBL_ROCLAND_SECURITY_USUARIOS u ON t.GuardiaID = u.ID
+            WHERE CAST(t.Fecha AS DATETIME) + CAST(t.HoraInicio AS DATETIME) <= GETDATE()
+                AND CAST(t.Fecha AS DATETIME) + CAST(t.HoraFin AS DATETIME) >= GETDATE()
+            ORDER BY t.ID DESC";
+
+                using var connection = new SqlConnection(connectionString);
+                await connection.OpenAsync();
+
+                using var command = new SqlCommand(query, connection);
+                using var reader = await command.ExecuteReaderAsync();
+
+                if (await reader.ReadAsync())
+                {
+                    return new Turno
+                    {
+                        ID = reader.GetInt32(reader.GetOrdinal("ID")),
+                        Fecha = DateOnly.FromDateTime(reader.GetDateTime(reader.GetOrdinal("Fecha"))),
+                        HoraInicio = TimeOnly.FromTimeSpan(reader.GetTimeSpan(reader.GetOrdinal("HoraInicio"))),
+                        HoraFin = TimeOnly.FromTimeSpan(reader.GetTimeSpan(reader.GetOrdinal("HoraFin"))),
+                        GuardiaID = reader.GetInt32(reader.GetOrdinal("GuardiaID")),
+                        NombreGuardia = reader.GetString(reader.GetOrdinal("NombreGuardia"))
+                    };
+                }
+
+                return null;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error en GetTurnoActivoAsync: {ex.Message}");
+                return null;
+            }
+        }
     }
 }

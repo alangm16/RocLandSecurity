@@ -39,6 +39,20 @@ namespace RocLandSecurity.Views.Supervisor
 
             try
             {
+                // Obtener turno activo y su información
+                var turnoActivo = await _db.GetTurnoActivoAsync();
+                var nombreGuardia = "Sin turno activo";
+
+                if (turnoActivo != null)
+                {
+                    nombreGuardia = turnoActivo.NombreGuardia;
+                    LblTurnoInfo.Text = $"Turno nocturno · {DateTime.Now:dd/M/yyyy} · {nombreGuardia}";
+                }
+                else
+                {
+                    LblTurnoInfo.Text = "Turno nocturno · Sin turno activo";
+                }
+
                 // Métricas y rondines en paralelo
                 var metricasTask = _db.GetMetricasTurnoActivoAsync();
                 var rondinesTask = _db.GetRondinesTurnoActivoAsync();
@@ -48,11 +62,25 @@ namespace RocLandSecurity.Views.Supervisor
                 var (completados, enProgreso, pendientes, incidencias) = metricasTask.Result;
                 var rondines = rondinesTask.Result;
 
+                // Calcular cumplimiento
+                int totalRondines = rondines.Count;
+
+                int rondinesCumplidos = rondines.Count(r =>
+                    r.PuntosTotal > 0 &&
+                    r.PuntosVisitados >= r.PuntosTotal
+                );
+
+                double cumplimiento = totalRondines > 0
+                    ? (double)rondinesCumplidos / totalRondines * 100
+                    : 0;
+
                 // Actualizar tarjetas métricas
                 LblCompletados.Text = completados.ToString();
-                LblEnProgreso.Text = enProgreso.ToString();
                 LblPendientes.Text = pendientes.ToString();
                 LblIncidencias.Text = incidencias.ToString();
+                LblCumplimientoDetalle.Text = $"{cumplimiento:F0}%";
+                CumplimientoProgress.Progress = cumplimiento / 100;
+
                 LblTotalRondines.Text = $"{rondines.Count} rondines";
 
                 // Construir lista
@@ -133,7 +161,7 @@ namespace RocLandSecurity.Views.Supervisor
             // Hora
             var lblHora = new Label
             {
-                Text = $"Rondín {rondin.HoraProgramadaStr} hrs",
+                Text = $"{rondin.HoraProgramadaStr} hrs",
                 TextColor = Colors.White,
                 FontSize = 15,
                 FontAttributes = FontAttributes.Bold,
@@ -193,11 +221,11 @@ namespace RocLandSecurity.Views.Supervisor
             contenido.Children.Add(progress);
 
             // Si tiene incidencia, mostrar aviso
-            if (rondin.Estado == 4)
+            if (rondin.Estado == 4 || (rondin.Estado == 2 && rondin.PuntosVisitados < rondin.PuntosTotal))
             {
                 var lblIncidencia = new Label
                 {
-                    Text = "⚠  Hay incidencias reportadas en este rondín",
+                    Text = "⚠ Hay incidencias reportadas en este rondín",
                     TextColor = Color.FromArgb("#FAC775"),
                     FontSize = 11,
                     Margin = new Thickness(0, 6, 0, 0),

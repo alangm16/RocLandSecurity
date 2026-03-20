@@ -1,4 +1,4 @@
-﻿using RocLandSecurity.Services;
+using RocLandSecurity.Services;
 using ZXing.Net.Maui;
 
 namespace RocLandSecurity
@@ -195,54 +195,51 @@ namespace RocLandSecurity
         // LOGIN POR QR
         // ─────────────────────────────────────────────────────────────────
 
+        private void ReiniciarCamara()
+        {
+            if (PanelQR == null) return;
+
+            // Guardamos el flash
+            bool flashEstabaEncendido = _flashOn;
+
+            // Eliminamos la cámara actual
+            if (QrScanner != null)
+            {
+                PanelQR.Children.Remove(QrScanner);
+                QrScanner = null;
+            }
+
+            // Creamos una nueva instancia
+            QrScanner = new ZXing.Net.Maui.Controls.CameraBarcodeReaderView
+            {
+                IsDetecting = true,
+                HorizontalOptions = LayoutOptions.Fill,
+                VerticalOptions = LayoutOptions.Fill
+            };
+            QrScanner.BarcodesDetected += OnQrDetected;
+
+            // Agregamos la nueva cámara a la vista
+            PanelQR.Children.Insert(0, QrScanner);
+
+            // Restauramos linterna si estaba encendida
+            if (flashEstabaEncendido)
+            {
+                QrScanner.IsTorchOn = true;
+            }
+
+            _qrProcesando = false;
+        }
+
         private async void OnRefrescarClicked(object sender, EventArgs e)
         {
-            try
-            {
-                BtnRefrescar.BackgroundColor = Color.FromArgb("#6DBF2E");
-                BtnRefrescar.IsEnabled = false;
+            QrStatusLabel.Text = "Reiniciando cámara...";
+            QrStatusLabel.IsVisible = true;
 
-                QrStatusLabel.Text = "Reiniciando cámara...";
-                QrStatusLabel.IsVisible = true;
-                QrStatusLabel.TextColor = Color.FromArgb("#6DBF2E");
+            ReiniciarCamara();
 
-                QrScanner.IsDetecting = false;
-
-                await Task.Delay(500);
-
-                bool flashEstabaEncendido = _flashOn;
-
-                if (flashEstabaEncendido)
-                {
-                    QrScanner.IsTorchOn = false;
-                    await Task.Delay(100);
-                }
-
-                QrScanner.IsDetecting = true;
-
-                if (flashEstabaEncendido)
-                {
-                    await Task.Delay(200);
-                    QrScanner.IsTorchOn = true;
-                }
-
-                QrStatusLabel.Text = "Cámara reiniciada";
-                await Task.Delay(800);
-
-                if (!_qrProcesando)
-                {
-                    QrStatusLabel.IsVisible = false;
-                }
-            }
-            catch (Exception ex)
-            {
-                await ShowToastAsync("Error al reiniciar cámara");
-            }
-            finally
-            {
-                BtnRefrescar.BackgroundColor = Color.FromArgb("#333333");
-                BtnRefrescar.IsEnabled = true;
-            }
+            QrStatusLabel.Text = "Cámara lista";
+            await Task.Delay(800);
+            QrStatusLabel.IsVisible = false;
         }
 
         private async void OnQrDetected(object sender, BarcodeDetectionEventArgs e)
@@ -340,7 +337,27 @@ namespace RocLandSecurity
             return BitConverter.ToString(bytes).Replace("-", "").ToLower();
         }
 
-        public enum ToastType { Error, Warning, Success }
+        // ─────────────────────────────────────────────────────────────────
+        // BOTÓN BACK DEL SISTEMA
+        // ─────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Intercepta el botón Back de Android mientras el login está visible.
+        /// Si el usuario NO está autenticado → bloquear (evita revelar el Shell).
+        /// Si está autenticado → comportamiento normal (navegar atrás en modales).
+        /// </summary>
+        protected override bool OnBackButtonPressed()
+        {
+            // Usuario no autenticado: el login está abierto como modal.
+            // Bloquear el back para que no revele el Shell debajo.
+            if (!_session.EstaAutenticado)
+                return true;   // true = evento consumido, no hacer nada
+
+            // Usuario autenticado: permitir comportamiento normal.
+            return base.OnBackButtonPressed();
+        }
+
+                public enum ToastType { Error, Warning, Success }
 
         public async Task ShowToastAsync(string message, ToastType type = ToastType.Error, int duration = 2000)
         {

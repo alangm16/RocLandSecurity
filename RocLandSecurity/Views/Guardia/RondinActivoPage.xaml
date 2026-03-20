@@ -96,7 +96,7 @@
             <Border Grid.Row="1"
                     BackgroundColor="#1A1A1A"
                     StrokeThickness="0"
-                    Margin="16,0,16,12"
+                    Margin="16,15,16,12"
                     Padding="16,14">
                 <Border.StrokeShape>
                     <RoundRectangle CornerRadius="14"/>
@@ -142,7 +142,7 @@
 
                     <VerticalStackLayout x:Name="ListaPuntos" Spacing="8"/>
 
-                    <BoxView HeightRequest="16" Color="Transparent"/>
+					<!-- <BoxView HeightRequest="16" Color="Transparent"/>-->
                 </VerticalStackLayout>
             </ScrollView>
 
@@ -301,15 +301,15 @@
                     <Border.StrokeShape>
                         <RoundRectangle CornerRadius="26"/>
                     </Border.StrokeShape>
-                    <Label Text="↺"
-                           TextColor="White"
-                           FontSize="20" FontAttributes="Bold"
+                    <Image x:Name="ImgRefesh"
+                           Source="refresh.png"
+                           WidthRequest="22" HeightRequest="22"
                            HorizontalOptions="Center"
                            VerticalOptions="Center">
-                        <Label.GestureRecognizers>
+                        <Image.GestureRecognizers>
                             <TapGestureRecognizer Tapped="OnRefrescarScannerClicked"/>
-                        </Label.GestureRecognizers>
-                    </Label>
+                        </Image.GestureRecognizers>
+                    </Image>
                 </Border>
 
             </Grid>

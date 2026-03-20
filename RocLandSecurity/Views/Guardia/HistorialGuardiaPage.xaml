@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="RocLandSecurity.Views.Guardia.HistorialGuardiaPage"
+             BackgroundColor="#111111"
+             Shell.NavBarIsVisible="False">
+
+    <ContentPage.Resources>
+        <ResourceDictionary>
+            <Color x:Key="AccentGreen">#6DBF2E</Color>
+            <Color x:Key="TextPrimary">#FFFFFF</Color>
+            <Color x:Key="TextSecondary">#888888</Color>
+            <Color x:Key="CardBg">#1A1A1A</Color>
+            <Color x:Key="BorderColor">#2A2A2A</Color>
+        </ResourceDictionary>
+    </ContentPage.Resources>
+
+    <Grid RowDefinitions="Auto,*">
+
+        <!-- HEADER -->
+        <Grid Grid.Row="0"
+              BackgroundColor="#1A1A1A"
+              Padding="20,48,20,16">
+            <VerticalStackLayout Spacing="2">
+                <Label Text="Historial"
+                       TextColor="{StaticResource TextPrimary}"
+                       FontSize="22" FontAttributes="Bold"/>
+                <Label Text="Rondines completados"
+                       TextColor="{StaticResource TextSecondary}"
+                       FontSize="13"/>
+            </VerticalStackLayout>
+        </Grid>
+
+        <!-- CONTENIDO -->
+        <ScrollView Grid.Row="1">
+            <VerticalStackLayout Padding="16,16,16,32" Spacing="0">
+
+                <ActivityIndicator x:Name="LoadingIndicator"
+                                   IsRunning="True" IsVisible="True"
+                                   Color="{StaticResource AccentGreen}"
+                                   Margin="0,32,0,0"/>
+
+                <!-- Sin historial -->
+                <VerticalStackLayout x:Name="PanelVacio"
+                                     IsVisible="False"
+                                     HorizontalOptions="Center"
+                                     Spacing="10"
+                                     Margin="0,48,0,0">
+                    <Label Text="📋" FontSize="48" HorizontalOptions="Center"/>
+                    <Label Text="Sin rondines completados"
+                           TextColor="{StaticResource TextPrimary}"
+                           FontSize="16" FontAttributes="Bold"
+                           HorizontalOptions="Center"/>
+                    <Label Text="Los rondines finalizados aparecerán aquí."
+                           TextColor="{StaticResource TextSecondary}"
+                           FontSize="13"
+                           HorizontalOptions="Center"
+                           HorizontalTextAlignment="Center"/>
+                </VerticalStackLayout>
+
+                <!-- Lista (construida desde code-behind) -->
+                <VerticalStackLayout x:Name="ListaHistorial" Spacing="12"/>
+
+            </VerticalStackLayout>
+        </ScrollView>
+
+        <!-- Toast -->
+        <Frame x:Name="ToastFrame"
+               Grid.Row="0" Grid.RowSpan="2"
+               BackgroundColor="#FF5555"
+               CornerRadius="12" Padding="14,10"
+               IsVisible="False"
+               HorizontalOptions="Center"
+               VerticalOptions="Start"
+               Margin="20,56,20,0"
+               HasShadow="True" Opacity="0"
+               ZIndex="100">
+            <Label x:Name="ToastLabel"
+                   TextColor="White" FontAttributes="Bold"
+                   FontSize="13" HorizontalOptions="Center"/>
+        </Frame>
+
+    </Grid>
+</ContentPage>

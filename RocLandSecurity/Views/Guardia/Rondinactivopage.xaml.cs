@@ -1,4 +1,4 @@
-﻿using RocLandSecurity.Models;
+using RocLandSecurity.Models;
 using RocLandSecurity.Services;
 using ZXing.Net.Maui;
 
@@ -22,6 +22,7 @@ namespace RocLandSecurity.Views.Guardia
         private bool _finalizando = false;
         private bool _flashEncendido = false;
         private DateTime _horaProgramada = DateTime.MinValue;
+        private int _turnoId = 0;
 
         public RondinActivoPage(DatabaseService db, SessionService session)
         {
@@ -56,19 +57,29 @@ namespace RocLandSecurity.Views.Guardia
 
         private async Task IniciarYCargarAsync()
         {
+            // Si ya están cargados los puntos (ej: volvemos de ReportarIncidencia),
+            // solo refrescar la UI sin tocar la BD
+            if (_puntos.Count > 0)
+            {
+                _puntos = await _db.GetPuntosDeRondinAsync(_rondinId);
+                ActualizarUI();
+                RenderizarPuntos();
+                return;
+            }
+
             LoadingIndicator.IsVisible = true;
             ListaPuntos.Children.Clear();
 
             try
             {
-                // Obtener hora programada para el título
-                _horaProgramada = await _db.GetHoraProgramadaRondinAsync(_rondinId);
+                // Obtener hora programada y turnoId
+                (_horaProgramada, _turnoId) = await _db.GetDatosRondinAsync(_rondinId);
 
                 // Verificar y generar puntos si faltan
                 int totalPuntos = await _db.AsegurarPuntosRondinAsync(_rondinId);
                 LblEstadoRondin.Text = $"Verificando {totalPuntos} puntos...";
 
-                // Marcar como iniciado
+                // Iniciar o retomar — nunca lanza error por estado
                 await _db.IniciarRondinAsync(_rondinId, modoEstricto: false);
 
                 // Cargar puntos
@@ -317,30 +328,61 @@ namespace RocLandSecurity.Views.Guardia
                     ImgFlash.Source = encendido ? "flash_on.png" : "flash_off.png";
             });
         }
+        private void ReiniciarScanner()
+        {
+            if (PanelScanner == null) return;
+
+            // Guardar estado de flash
+            bool flashAntes = _flashEncendido;
+
+            // Remover el scanner actual
+            if (QrScanner != null)
+            {
+                PanelScanner.Children.Remove(QrScanner);
+                QrScanner.BarcodesDetected -= OnQrDetected;
+                QrScanner = null;
+            }
+
+            // Crear nueva instancia del scanner
+            QrScanner = new ZXing.Net.Maui.Controls.CameraBarcodeReaderView
+            {
+                IsDetecting = true,
+                HorizontalOptions = LayoutOptions.Fill,
+                VerticalOptions = LayoutOptions.Fill
+            };
+            QrScanner.BarcodesDetected += OnQrDetected;
+
+            // Insertar nuevamente en la vista
+            PanelScanner.Children.Insert(0, QrScanner);
+
+            // Restaurar flash si estaba encendido
+            if (flashAntes)
+            {
+                QrScanner.IsTorchOn = true;
+                _flashEncendido = true;
+            }
+            else
+            {
+                _flashEncendido = false;
+            }
+
+            _escaneando = false;
+        }
 
         private async void OnRefrescarScannerClicked(object sender, EventArgs e)
         {
-            bool flashAntes = _flashEncendido;
-            QrScanner.IsDetecting = false;
-            if (flashAntes) QrScanner.IsTorchOn = false;
-
             BtnRefrescarBorder.BackgroundColor = Color.FromArgb("#6DBF2E");
             LblScannerStatus.Text = "Reiniciando cámara...";
             LblScannerStatus.TextColor = Color.FromArgb("#6DBF2E");
 
-            await Task.Delay(500);
-            QrScanner.IsDetecting = true;
+            await Task.Delay(200);
 
-            if (flashAntes)
-            {
-                await Task.Delay(200);
-                QrScanner.IsTorchOn = true;
-            }
+            ReiniciarScanner();
 
             await Task.Delay(600);
+
             LblScannerStatus.Text = "";
             BtnRefrescarBorder.BackgroundColor = Color.FromArgb("#333333");
-            _escaneando = false;
         }
 
         private async void OnQrDetected(object sender, BarcodeDetectionEventArgs e)
@@ -481,8 +523,8 @@ namespace RocLandSecurity.Views.Guardia
 
         private async void OnReportarIncidenciaClicked(object sender, EventArgs e)
         {
-            // Sprint 4
-            await ShowToastAsync("Reporte de incidencias — próximamente", isError: false);
+            await Shell.Current.GoToAsync(
+                $"reportarincidencia?rondinId={_rondinId}&turnoId={_turnoId}");
         }
 
         // ─────────────────────────────────────────────────────────────────

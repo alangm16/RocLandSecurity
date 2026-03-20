@@ -51,6 +51,10 @@ namespace RocLandSecurity
             builder.Services.AddTransient<SupervisorHomePage>();
             builder.Services.AddTransient<PerfilPage>();
             builder.Services.AddTransient<RondinActivoPage>();
+            builder.Services.AddTransient<ReportarIncidenciaPage>();
+            builder.Services.AddTransient<HistorialGuardiaPage>();
+            builder.Services.AddTransient<SupervisorIncidenciasPage>();
+            builder.Services.AddTransient<SupervisorHistorialPage>();
 
 #if ANDROID
             ImageHandler.Mapper.AppendToMapping("NoTint_Android", (handler, view) =>

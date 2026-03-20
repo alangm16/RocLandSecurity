@@ -46,15 +46,7 @@
             <ShellContent
                 Title="Historial"
                 Route="guardiahistorial"
-                ContentTemplate="{DataTemplate guardia:GuardiaHomePage}"
-                Shell.NavBarIsVisible="False"/>
-        </Tab>
-
-        <Tab Title="Incidencias" Icon="tab_incidencia.png" Route="incidencias">
-            <ShellContent
-                Title="Incidencias"
-                Route="guardiaincidencias"
-                ContentTemplate="{DataTemplate guardia:GuardiaHomePage}"
+                ContentTemplate="{DataTemplate guardia:HistorialGuardiaPage}"
                 Shell.NavBarIsVisible="False"/>
         </Tab>
 
@@ -85,7 +77,7 @@
             <ShellContent
                 Title="Incidencias"
                 Route="supervisorincidencias"
-                ContentTemplate="{DataTemplate supervisor:SupervisorHomePage}"
+                ContentTemplate="{DataTemplate supervisor:SupervisorIncidenciasPage}"
                 Shell.NavBarIsVisible="False"/>
         </Tab>
 
@@ -93,7 +85,7 @@
             <ShellContent
                 Title="Historial"
                 Route="supervisorhistorial"
-                ContentTemplate="{DataTemplate supervisor:SupervisorHomePage}"
+                ContentTemplate="{DataTemplate supervisor:SupervisorHistorialPage}"
                 Shell.NavBarIsVisible="False"/>
         </Tab>
 

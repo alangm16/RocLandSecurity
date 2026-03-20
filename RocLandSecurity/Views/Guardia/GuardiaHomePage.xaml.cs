@@ -1,5 +1,6 @@
 ﻿using RocLandSecurity.Models;
 using RocLandSecurity.Services;
+using System.Runtime.ConstrainedExecution;
 
 namespace RocLandSecurity.Views.Guardia
 {
@@ -87,6 +88,7 @@ namespace RocLandSecurity.Views.Guardia
 
             // ── En progreso ──────────────────────────────────
             PanelEnProgreso.Children.Clear();
+            LblSeccionEnProgreso.IsVisible = enProgreso.Count > 0;
             PanelEnProgreso.IsVisible = enProgreso.Count > 0;
             foreach (var r in enProgreso)
                 PanelEnProgreso.Children.Add(CrearTarjetaEnProgreso(r));
@@ -112,18 +114,41 @@ namespace RocLandSecurity.Views.Guardia
 
         private View CrearTarjetaEnProgreso(Rondin rondin)
         {
+            var clr = Color.FromArgb(rondin.EstadoColor);
+
             var card = new Border
             {
                 BackgroundColor = Color.FromArgb("#1A1A1A"),
                 StrokeThickness = 1,
                 Stroke = Color.FromArgb("#2A4A2A"),
-                Padding = new Thickness(16, 14),
+                Padding = new Thickness(0),
             };
             card.StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle
             { CornerRadius = new CornerRadius(14) };
 
+            var innerGrid = new Grid
+            {
+                ColumnDefinitions =
+                {
+                    new ColumnDefinition { Width = new GridLength(4) },
+                    new ColumnDefinition { Width = GridLength.Star },
+                }
+            };
+
+            innerGrid.Children.Add(new BoxView
+            {
+                Color = Color.FromArgb("#1A3A1A"),
+                VerticalOptions = LayoutOptions.Fill
+            });
+
             var grid = new Grid
             {
+                RowDefinitions =
+                {
+                    new RowDefinition { Height = GridLength.Auto },
+                    new RowDefinition { Height = GridLength.Auto },
+                    new RowDefinition { Height = GridLength.Auto },
+                },
                 ColumnDefinitions =
                 {
                     new ColumnDefinition { Width = new GridLength(40) },
@@ -151,7 +176,7 @@ namespace RocLandSecurity.Views.Guardia
                 HorizontalOptions = LayoutOptions.Center,
                 VerticalOptions = LayoutOptions.Center,
             };
-            Grid.SetColumn(iconBorder, 0);
+            Grid.SetColumn(iconBorder, 0); Grid.SetRow(iconBorder, 0);
 
             // Texto
             var info = new VerticalStackLayout
@@ -173,7 +198,7 @@ namespace RocLandSecurity.Views.Guardia
                 TextColor = Color.FromArgb("#888888"),
                 FontSize = 12,
             });
-            Grid.SetColumn(info, 1);
+            Grid.SetColumn(info, 1); Grid.SetRow(info, 0);
 
             // Flecha
             var arrow = new Label
@@ -183,18 +208,63 @@ namespace RocLandSecurity.Views.Guardia
                 FontSize = 22,
                 VerticalOptions = LayoutOptions.Center,
             };
-            Grid.SetColumn(arrow, 2);
+            Grid.SetColumn(arrow, 2); Grid.SetRow(arrow, 0);
 
+            // Barra de progreso
+            double pct = rondin.PuntosTotal > 0
+                ? (double)rondin.PuntosVisitados / rondin.PuntosTotal
+                : 0;
+            var progress = new ProgressBar
+            {
+                Progress = pct,
+                ProgressColor = clr,
+                BackgroundColor = Color.FromArgb("#2E2E2E"),
+                HeightRequest = 4,
+                Margin = new Thickness(0, 12, 0, 0),
+            };
+            Grid.SetRow(progress, 1); Grid.SetColumn(progress, 0); Grid.SetColumnSpan(progress, 3);
+
+            var btnContinuar = new Button
+            {
+                Text = "Continuar rondín",
+                BackgroundColor = Color.FromArgb("#6DBF2E"),
+                TextColor = Colors.Black,
+                FontSize = 14,
+                FontAttributes = FontAttributes.Bold,
+                CornerRadius = 10,
+                HeightRequest = 50,
+                Margin = new Thickness(0, 12, 0, 0),
+            };
+            btnContinuar.Clicked += async (s, e) => await IrARondinActivoAsync(rondin);
+            Grid.SetRow(btnContinuar, 2);
+            Grid.SetColumn(btnContinuar, 0);
+            Grid.SetColumnSpan(btnContinuar, 3);
+
+            var wrapper = new Grid
+            {
+                Padding = new Thickness(16, 14),
+                RowDefinitions =
+                {
+                    new RowDefinition { Height = GridLength.Auto },
+                    new RowDefinition { Height = GridLength.Auto },
+                    new RowDefinition { Height = GridLength.Auto },
+                }
+            };
             grid.Children.Add(iconBorder);
             grid.Children.Add(info);
             grid.Children.Add(arrow);
-            card.Content = grid;
+            grid.Children.Add(progress);
+            grid.Children.Add(btnContinuar);
+            wrapper.Children.Add(grid);
+            Grid.SetColumn(wrapper, 1);
+            innerGrid.Children.Add(wrapper);
+            card.Content = innerGrid;
 
             // Tap para retomar
-            card.GestureRecognizers.Add(new TapGestureRecognizer
+            /*card.GestureRecognizers.Add(new TapGestureRecognizer
             {
                 Command = new Command(async () => await IrARondinActivoAsync(rondin))
-            });
+            });*/
 
             return card;
         }
@@ -257,7 +327,15 @@ namespace RocLandSecurity.Views.Guardia
             };
             Grid.SetColumn(contenido, 1);
 
-            // Hora
+            var imgClock = new Image
+            {
+                Source = "clock.png",
+                WidthRequest = 14,
+                HeightRequest = 14,
+                VerticalOptions = LayoutOptions.Center,
+            };
+
+
             var lblHora = new Label
             {
                 Text = $"Rondín {rondin.HoraProgramadaStr} hrs",
@@ -265,7 +343,15 @@ namespace RocLandSecurity.Views.Guardia
                 FontSize = 15,
                 FontAttributes = FontAttributes.Bold,
             };
-            Grid.SetRow(lblHora, 0); Grid.SetColumn(lblHora, 0);
+
+            var headerHora = new HorizontalStackLayout
+            {
+                Spacing = 6,
+                VerticalOptions = LayoutOptions.Center
+            };
+            headerHora.Children.Add(imgClock);
+            headerHora.Children.Add(lblHora);
+            Grid.SetRow(headerHora, 0); Grid.SetColumn(headerHora, 0);
 
             // Badge estado
             var badge = new Border
@@ -314,7 +400,7 @@ namespace RocLandSecurity.Views.Guardia
             Grid.SetRow(progress, 2); Grid.SetColumn(progress, 0);
             Grid.SetColumnSpan(progress, 2);
 
-            contenido.Children.Add(lblHora);
+            contenido.Children.Add(headerHora);
             contenido.Children.Add(badge);
             contenido.Children.Add(lblInfo);
             contenido.Children.Add(progress);
@@ -345,7 +431,7 @@ namespace RocLandSecurity.Views.Guardia
             {
                 var btn = new Button
                 {
-                    Text = "▶  Continuar rondín",
+                    Text = "Continuar rondín",
                     BackgroundColor = Color.FromArgb("#185FA5"),
                     TextColor = Colors.White,
                     FontAttributes = FontAttributes.Bold,
@@ -412,6 +498,21 @@ namespace RocLandSecurity.Views.Guardia
         {
             await Shell.Current.GoToAsync(
                 $"rondinactivo?rondinId={rondin.ID}");
+        }
+
+        /// <summary>
+        /// Botón de incidencia fuera de rondín activo (desde la tab principal).
+        /// Solo disponible si hay turno activo.
+        /// </summary>
+        private async void OnReportarIncidenciaFueraRondinClicked(object sender, EventArgs e)
+        {
+            if (_turnoActivo == null)
+            {
+                await ShowToastAsync("Debes iniciar un turno primero.");
+                return;
+            }
+            await Shell.Current.GoToAsync(
+                $"reportarincidencia?rondinId=0&turnoId={_turnoActivo.ID}");
         }
 
         // ─────────────────────────────────────────────────────────────────
