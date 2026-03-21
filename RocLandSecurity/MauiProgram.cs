@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 using RocLandSecurity.Services;
 using RocLandSecurity.Views.Guardia;
 using RocLandSecurity.Views.Supervisor;
@@ -44,6 +44,16 @@ namespace RocLandSecurity
             builder.Services.AddSingleton(new DatabaseService(connectionString));
             builder.Services.AddSingleton<SessionService>();
             builder.Services.AddSingleton<IFlashlightService, FlashlightService>();
+
+            // ── Servicios offline / sync ─────────────────────────────────
+            builder.Services.AddSingleton(new ConnectivityService(connectionString));
+            builder.Services.AddSingleton<LocalDatabase>();
+            builder.Services.AddSingleton<SyncService>(sp =>
+                new SyncService(
+                    sp.GetRequiredService<LocalDatabase>(),
+                    sp.GetRequiredService<ConnectivityService>(),
+                    connectionString));
+            builder.Services.AddSingleton<OfflineDatabaseService>();
 
             // ── Páginas (Transient = nueva instancia cada vez) ───────────────
             builder.Services.AddSingleton<MainPage>();

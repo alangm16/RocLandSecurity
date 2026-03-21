@@ -5,16 +5,16 @@ namespace RocLandSecurity
 {
     public partial class MainPage : ContentPage
     {
-        private readonly DatabaseService _db;
+        private readonly OfflineDatabaseService _offline;
         private readonly SessionService _session;
         private readonly IFlashlightService _flashlight;
         private bool _qrProcesando = false;
         private bool _flashOn = false;
 
-        public MainPage(DatabaseService databaseService, SessionService sessionService, IFlashlightService flashlight)
+        public MainPage(OfflineDatabaseService offline, SessionService sessionService, IFlashlightService flashlight)
         {
             InitializeComponent();
-            _db = databaseService;
+            _offline = offline;
             _session = sessionService;
             _flashlight = flashlight;
 
@@ -148,7 +148,7 @@ namespace RocLandSecurity
 
         private async void OnLoginClicked(object sender, EventArgs e)
         {
-            string usuario = UsuarioEntry.Text?.Trim() ?? "";
+            string usuario   = UsuarioEntry.Text?.Trim() ?? "";
             string contrasena = ContrasenaEntry.Text?.Trim() ?? "";
 
             if (string.IsNullOrEmpty(usuario) || string.IsNullOrEmpty(contrasena))
@@ -163,26 +163,32 @@ namespace RocLandSecurity
             try
             {
                 string hash = HashSHA256(contrasena);
-                var user = await _db.GetUsuarioByLoginAsync(usuario, hash);
+                var (user, fueOffline) = await _offline.LoginAsync(usuario, hash);
 
                 if (user == null)
                 {
-                    await ShowToastAsync("Credenciales incorrectas");
+                    await ShowToastAsync(fueOffline
+                        ? "Sin conexión y sin credenciales guardadas."
+                        : "Credenciales incorrectas.");
                     return;
                 }
 
                 if (!user.Activo)
                 {
-                    await ShowToastAsync("Cuenta desactivada");
+                    await ShowToastAsync("Cuenta desactivada.");
                     return;
                 }
 
                 _session.IniciarSesion(user);
+
+                if (fueOffline)
+                    await ShowToastAsync("Sin conexión — modo offline", ToastType.Warning, 2500);
+
                 await NavegerPorRol();
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                await ShowToastAsync("Error de conexión. Verifica la red.");
+                await ShowToastAsync($"Error: {ex.Message}");
             }
             finally
             {
@@ -264,12 +270,14 @@ namespace RocLandSecurity
 
                 try
                 {
-                    var user = await _db.GetUsuarioByQRAsync(codigoQR);
+                    var (user, fueOffline) = await _offline.LoginQRAsync(codigoQR);
 
                     if (user == null)
                     {
                         QrStatusLabel.IsVisible = false;
-                        await ShowToastAsync("QR no reconocido");
+                        await ShowToastAsync(fueOffline
+                            ? "Sin conexión y QR no cacheado."
+                            : "QR no reconocido.");
                         await Task.Delay(500);
                         _qrProcesando = false;
                         QrScanner.IsDetecting = true;
@@ -279,7 +287,7 @@ namespace RocLandSecurity
                     if (!user.Activo)
                     {
                         QrStatusLabel.IsVisible = false;
-                        await ShowToastAsync("Cuenta desactivada");
+                        await ShowToastAsync("Cuenta desactivada.");
                         await Task.Delay(500);
                         _qrProcesando = false;
                         QrScanner.IsDetecting = true;
@@ -288,13 +296,14 @@ namespace RocLandSecurity
 
                     QrStatusLabel.Text = $"¡Bienvenido, {user.Nombre}!";
                     QrStatusLabel.IsVisible = true;
-
                     _session.IniciarSesion(user);
                     await ApagarLinternaAsync();
                     await Task.Delay(600);
-
                     QrStatusLabel.Text = string.Empty;
                     QrStatusLabel.IsVisible = false;
+
+                    if (fueOffline)
+                        await ShowToastAsync("Sin conexión — modo offline", ToastType.Warning, 2000);
 
                     await NavegerPorRol();
                 }

@@ -1,4 +1,4 @@
-﻿using RocLandSecurity.Models;
+using RocLandSecurity.Models;
 using RocLandSecurity.Services;
 using System.Runtime.ConstrainedExecution;
 
@@ -6,15 +6,15 @@ namespace RocLandSecurity.Views.Guardia
 {
     public partial class GuardiaHomePage : ContentPage
     {
-        private readonly DatabaseService _db;
+        private readonly OfflineDatabaseService _offline;
         private readonly SessionService _session;
         private Turno? _turnoActivo;
         private List<Rondin> _rondines = new();
 
-        public GuardiaHomePage(DatabaseService db, SessionService session)
+        public GuardiaHomePage(OfflineDatabaseService offline, SessionService session)
         {
             InitializeComponent();
-            _db = db;
+            _offline = offline;
             _session = session;
         }
 
@@ -44,13 +44,13 @@ namespace RocLandSecurity.Views.Guardia
 
             try
             {
-                _turnoActivo = await _db.GetTurnoActivoAsync(usuario.ID);
+                _turnoActivo = await _offline.GetTurnoActivoAsync(usuario.ID);
 
                 if (_turnoActivo == null)
                     MostrarSinTurno();
                 else
                 {
-                    _rondines = await _db.GetRondinesPorTurnoAsync(_turnoActivo.ID);
+                    _rondines = await _offline.GetRondinesPorTurnoAsync(_turnoActivo.ID);
                     MostrarRondines();
                 }
             }
@@ -476,7 +476,7 @@ namespace RocLandSecurity.Views.Guardia
 
             try
             {
-                _turnoActivo = await _db.CrearTurnoYRondinesAsync(usuario.ID);
+                _turnoActivo = await _offline.CrearTurnoYRondinesAsync(usuario.ID);
                 await ShowToastAsync("Turno iniciado correctamente", false);
                 await CargarDatosAsync();
             }

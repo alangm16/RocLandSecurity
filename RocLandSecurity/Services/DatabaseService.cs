@@ -12,6 +12,9 @@ namespace RocLandSecurity.Services
             connectionString = connString;
         }
 
+        /// <summary>Expone el connection string para servicios de sync.</summary>
+        public string GetConnectionString() => connectionString;
+
         // ═══════════════════════════════════════════════════════════════════
         // USUARIOS
         // ═══════════════════════════════════════════════════════════════════

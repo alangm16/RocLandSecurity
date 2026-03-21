@@ -100,10 +100,71 @@
                        HorizontalOptions="Center"
                        Margin="0,8,0,0"/>
 
+                <!-- Panel sync — solo visible para guardias -->
+                <Border x:Name="PanelSync"
+                        IsVisible="False"
+                        BackgroundColor="#1A1A1A"
+                        StrokeThickness="1"
+                        Stroke="#2A2A2A"
+                        Padding="16,14">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="12"/>
+                    </Border.StrokeShape>
+                    <VerticalStackLayout Spacing="10">
+
+                        <!-- Estado de pendientes -->
+                        <Grid ColumnDefinitions="*,Auto">
+                            <VerticalStackLayout Grid.Column="0" Spacing="2">
+                                <Label Text="Sincronización"
+                                       TextColor="White"
+                                       FontSize="14" FontAttributes="Bold"/>
+                                <Label x:Name="LblEstadoSync"
+                                       Text="Verificando..."
+                                       TextColor="#888888"
+                                       FontSize="12"/>
+                            </VerticalStackLayout>
+                            <!-- Indicador de estado -->
+                            <Border Grid.Column="1"
+                                    x:Name="BadgeSync"
+                                    BackgroundColor="#1A2A1A"
+                                    StrokeThickness="0"
+                                    Padding="10,4"
+                                    VerticalOptions="Center">
+                                <Border.StrokeShape>
+                                    <RoundRectangle CornerRadius="8"/>
+                                </Border.StrokeShape>
+                                <Label x:Name="LblBadgeSync"
+                                       Text="OK"
+                                       TextColor="#6DBF2E"
+                                       FontSize="11" FontAttributes="Bold"/>
+                            </Border>
+                        </Grid>
+
+                        <!-- Botón forzar sync -->
+                        <Button x:Name="BtnForzarSync"
+                                Text="Forzar sincronización ahora"
+                                BackgroundColor="#252525"
+                                TextColor="#6DBF2E"
+                                FontSize="14"
+                                FontAttributes="Bold"
+                                CornerRadius="10"
+                                HeightRequest="46"
+                                BorderColor="#2A4A2A"
+                                BorderWidth="1"
+                                Clicked="OnForzarSyncClicked"/>
+
+                        <Label x:Name="LblUltimaSync"
+                               Text=""
+                               TextColor="#555555"
+                               FontSize="11"
+                               HorizontalOptions="Center"/>
+                    </VerticalStackLayout>
+                </Border>
+
             </VerticalStackLayout>
         </ScrollView>
 
-        <!-- BOTÓN LOGOUT -->
+        <!-- BOTONES INFERIORES -->
         <Border Grid.Row="2"
                 BackgroundColor="#1C1C1C"
                 StrokeThickness="0"

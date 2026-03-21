@@ -12,7 +12,7 @@ namespace RocLandSecurity.Views.Guardia
     [QueryProperty(nameof(TurnoId),  "turnoId")]
     public partial class ReportarIncidenciaPage : ContentPage
     {
-        private readonly DatabaseService _db;
+        private readonly OfflineDatabaseService _offline;
         private readonly SessionService  _session;
 
         private int _rondinId = 0;   // 0 = fuera de rondín
@@ -33,10 +33,10 @@ namespace RocLandSecurity.Views.Guardia
         private static readonly Color ClrIdleTxt     = Color.FromArgb("#888888");
         private static readonly Color ClrIdleStroke  = Color.FromArgb("#2A2A2A");
 
-        public ReportarIncidenciaPage(DatabaseService db, SessionService session)
+        public ReportarIncidenciaPage(OfflineDatabaseService offline, SessionService session)
         {
             InitializeComponent();
-            _db      = db;
+            _offline = offline;
             _session = session;
         }
 
@@ -61,7 +61,7 @@ namespace RocLandSecurity.Views.Guardia
         {
             try
             {
-                _puntos = await _db.GetPuntosControlAsync();
+                _puntos = await _offline.GetPuntosControlAsync();
 
                 PickerPunto.Items.Clear();
                 PickerPunto.Items.Add("Otra ubicación (libre)");   // índice 0
@@ -196,7 +196,7 @@ namespace RocLandSecurity.Views.Guardia
             {
                 var usuario = _session.UsuarioActual!;
 
-                await _db.CrearIncidenciaAsync(new Incidencia
+                await _offline.CrearIncidenciaAsync(new Incidencia
                 {
                     TurnoID          = _turnoId,
                     RondinID         = _rondinId > 0 ? _rondinId : null,

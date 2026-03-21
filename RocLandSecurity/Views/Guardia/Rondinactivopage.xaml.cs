@@ -7,7 +7,7 @@ namespace RocLandSecurity.Views.Guardia
     [QueryProperty(nameof(RondinId), "rondinId")]
     public partial class RondinActivoPage : ContentPage
     {
-        private readonly DatabaseService _db;
+        private readonly OfflineDatabaseService _offline;
         private readonly SessionService _session;
 
         private int _rondinId;
@@ -24,10 +24,10 @@ namespace RocLandSecurity.Views.Guardia
         private DateTime _horaProgramada = DateTime.MinValue;
         private int _turnoId = 0;
 
-        public RondinActivoPage(DatabaseService db, SessionService session)
+        public RondinActivoPage(OfflineDatabaseService offline, SessionService session)
         {
             InitializeComponent();
-            _db = db;
+            _offline = offline;
             _session = session;
         }
 
@@ -61,7 +61,7 @@ namespace RocLandSecurity.Views.Guardia
             // solo refrescar la UI sin tocar la BD
             if (_puntos.Count > 0)
             {
-                _puntos = await _db.GetPuntosDeRondinAsync(_rondinId);
+                _puntos = await _offline.GetPuntosDeRondinAsync(_rondinId);
                 ActualizarUI();
                 RenderizarPuntos();
                 return;
@@ -73,17 +73,17 @@ namespace RocLandSecurity.Views.Guardia
             try
             {
                 // Obtener hora programada y turnoId
-                (_horaProgramada, _turnoId) = await _db.GetDatosRondinAsync(_rondinId);
+                (_horaProgramada, _turnoId) = await _offline.GetDatosRondinAsync(_rondinId);
 
                 // Verificar y generar puntos si faltan
-                int totalPuntos = await _db.AsegurarPuntosRondinAsync(_rondinId);
+                int totalPuntos = await _offline.AsegurarPuntosRondinAsync(_rondinId);
                 LblEstadoRondin.Text = $"Verificando {totalPuntos} puntos...";
 
                 // Iniciar o retomar — nunca lanza error por estado
-                await _db.IniciarRondinAsync(_rondinId, modoEstricto: false);
+                await _offline.IniciarRondinAsync(_rondinId, modoEstricto: false);
 
                 // Cargar puntos
-                _puntos = await _db.GetPuntosDeRondinAsync(_rondinId);
+                _puntos = await _offline.GetPuntosDeRondinAsync(_rondinId);
 
                 if (_puntos.Count == 0)
                 {
@@ -402,7 +402,7 @@ namespace RocLandSecurity.Views.Guardia
             await MainThread.InvokeOnMainThreadAsync(async () =>
             {
                 RondinPunto? puntoEscaneado = null;
-                try { puntoEscaneado = await _db.GetRondinPuntoPorQRAsync(_rondinId, codigoLeido); }
+                try { puntoEscaneado = await _offline.GetRondinPuntoPorQRAsync(_rondinId, codigoLeido); }
                 catch { }
 
                 if (puntoEscaneado == null)
@@ -441,7 +441,7 @@ namespace RocLandSecurity.Views.Guardia
                     }
                     catch { }
 
-                    await _db.RegistrarVisitaPuntoAsync(puntoEscaneado.ID, lat, lon);
+                    await _offline.RegistrarVisitaPuntoAsync(puntoEscaneado.ID, lat, lon, _rondinId, codigoLeido);
 
                     var local = _puntos.First(p => p.ID == puntoEscaneado.ID);
                     local.Estado = 1;
@@ -498,7 +498,7 @@ namespace RocLandSecurity.Views.Guardia
 
             try
             {
-                await _db.FinalizarRondinAsync(_rondinId);
+                await _offline.FinalizarRondinAsync(_rondinId);
                 await ShowToastAsync("Rondín finalizado", isError: false);
                 await Task.Delay(1000);
                 await Shell.Current.GoToAsync("..");

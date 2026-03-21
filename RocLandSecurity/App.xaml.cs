@@ -1,31 +1,44 @@
-﻿using RocLandSecurity.Services;
+using RocLandSecurity.Services;
 
 namespace RocLandSecurity
 {
     public partial class App : Application
     {
         private readonly MainPage _loginPage;
-        private readonly SessionService _session;
+        private readonly LocalDatabase _localDb;
+        private readonly SyncService _sync;
+        private readonly ConnectivityService _connectivity;
 
-        public App(MainPage loginPage, SessionService session)
+        public App(MainPage loginPage, LocalDatabase localDb,
+            SyncService sync, ConnectivityService connectivity)
         {
             InitializeComponent();
             _loginPage = loginPage;
-            _session = session;
+            _localDb = localDb;
+            _sync = sync;
+            _connectivity = connectivity;
         }
 
         protected override Window CreateWindow(IActivationState? activationState)
         {
-            // 1. El Shell (con los TabBars) es la raíz de la ventana
             var shell = new AppShell();
             var window = new Window(shell);
 
-            // 2. Mostramos el login como modal encima del Shell
-            //    El Shell queda vivo debajo pero tapado por el login.
-            //    Cuando el login hace PopModalAsync, el Shell aparece
-            //    ya con el TabBar correcto abajo.
             shell.Loaded += async (s, e) =>
             {
+                // 1. Inicializar SQLite (una sola vez, aqu�)
+                await _localDb.InitAsync();
+
+                // 2. Arrancar timer de sync (5 min)
+                _sync.IniciarTimerSync(intervalMinutos: 5);
+
+                // 3. Sync inicial si hay red (en background, no bloquea login)
+                bool online = await _connectivity.CheckServerAsync();
+                if (online)
+                    _ = Task.Run(async () =>
+                        await _sync.SincronizarAsync(SyncReason.AlAbrir));
+
+                // 4. Mostrar login
                 await shell.Navigation.PushModalAsync(_loginPage, animated: false);
             };
 
