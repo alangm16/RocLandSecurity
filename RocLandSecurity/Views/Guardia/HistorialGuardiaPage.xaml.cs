@@ -67,8 +67,27 @@ namespace RocLandSecurity.Views.Guardia
                 if (esOffline)
                     ListaHistorial.Children.Add(CrearBannerOffline());
 
+                // Agrupar rondines por fecha (día del turno)
+                // Turno nocturno cruza medianoche: la fecha del turno es la de HoraProgramada
+                DateTime? fechaActual = null;
                 foreach (var item in items)
+                {
+                    // Fecha del día al que pertenece este rondín
+                    var fechaItem = item.HoraProgramada.Date;
+
+                    // Si el rondín es nocturno (hora < 08:00) pertenece al día anterior
+                    if (item.HoraProgramada.Hour < 8)
+                        fechaItem = item.HoraProgramada.Date.AddDays(-1);
+
+                    // Insertar separador cuando cambia el día
+                    if (fechaActual == null || fechaActual.Value.Date != fechaItem)
+                    {
+                        fechaActual = fechaItem;
+                        ListaHistorial.Children.Add(CrearSeparadorDia(fechaItem));
+                    }
+
                     ListaHistorial.Children.Add(CrearTarjetaHistorial(item));
+                }
             }
             catch (Exception ex)
             {
@@ -78,6 +97,39 @@ namespace RocLandSecurity.Views.Guardia
             {
                 LoadingIndicator.IsVisible = false;
             }
+        }
+
+        // ─────────────────────────────────────────────────────────────────
+        // SEPARADOR DE DÍA
+        // ─────────────────────────────────────────────────────────────────
+
+        private View CrearSeparadorDia(DateTime fecha)
+        {
+            var cultura = new System.Globalization.CultureInfo("es-MX");
+
+            string etiqueta;
+            if (fecha.Date == DateTime.Today)
+                etiqueta = "HOY";
+            else if (fecha.Date == DateTime.Today.AddDays(-1))
+                etiqueta = "AYER";
+            else
+                etiqueta = cultura.DateTimeFormat.GetDayName(fecha.DayOfWeek).ToUpper();
+
+            // Formato: HOY · SÁBADO 21 - 03 - 2026
+            string fechaStr = $"{fecha:dd} - {fecha:MM} - {fecha:yyyy}";
+            string textoCompleto = etiqueta == "HOY" || etiqueta == "AYER"
+                ? $"{etiqueta}  ·  {cultura.DateTimeFormat.GetDayName(fecha.DayOfWeek).ToUpper()}  {fechaStr}"
+                : $"{etiqueta}  {fechaStr}";
+
+            return new Label
+            {
+                Text = textoCompleto,
+                TextColor = Color.FromArgb("#555555"),
+                FontSize = 11,
+                FontAttributes = FontAttributes.Bold,
+                Margin = new Thickness(4, 16, 0, 6),
+                LineBreakMode = LineBreakMode.NoWrap,
+            };
         }
 
         // ─────────────────────────────────────────────────────────────────
