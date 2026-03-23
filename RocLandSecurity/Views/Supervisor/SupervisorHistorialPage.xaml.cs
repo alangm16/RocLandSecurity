@@ -12,6 +12,8 @@ namespace RocLandSecurity.Views.Supervisor
         private DateTime       _fechaSeleccionada = DateTime.Today;
         private List<DateTime> _fechasConActividad = new();
 
+        private bool _cargandoHistorial = false;
+
         public SupervisorHistorialPage(DatabaseService db, SessionService session)
         {
             InitializeComponent();
@@ -145,17 +147,17 @@ namespace RocLandSecurity.Views.Supervisor
         {
             _fechaActual = _fechaActual.AddMonths(-1);
             await CargarCalendarioAsync();
-            AjustarFechaSeleccionada();
+            await AjustarFechaSeleccionada();
         }
 
         private async void OnMesSiguienteClicked(object sender, EventArgs e)
         {
             _fechaActual = _fechaActual.AddMonths(1);
             await CargarCalendarioAsync();
-            AjustarFechaSeleccionada();
+            await AjustarFechaSeleccionada();
         }
 
-        private async void AjustarFechaSeleccionada()
+        private async Task AjustarFechaSeleccionada()
         {
             var primero = new DateTime(_fechaActual.Year, _fechaActual.Month, 1);
             var ultimo  = primero.AddMonths(1).AddDays(-1);
@@ -163,7 +165,7 @@ namespace RocLandSecurity.Views.Supervisor
             {
                 _fechaSeleccionada = primero;
                 ActualizarCalendario();
-                await CargarHistorialDiaAsync(_fechaSeleccionada);
+                await CargarHistorialDiaAsync(_fechaSeleccionada);  
             }
         }
 
@@ -173,8 +175,14 @@ namespace RocLandSecurity.Views.Supervisor
 
         private async Task CargarHistorialDiaAsync(DateTime fecha)
         {
+            // Evitar cargas concurrentes
+            if (_cargandoHistorial) return;
+
+            _cargandoHistorial = true;
             LoadingIndicator.IsVisible = true;
-            PanelContenido.IsVisible   = false;
+            PanelContenido.IsVisible = false;
+
+            // Limpiar correctamente el StackLayout
             ListaTurnos.Children.Clear();
 
             try
@@ -188,11 +196,11 @@ namespace RocLandSecurity.Views.Supervisor
                     // Título del día
                     ListaTurnos.Children.Add(new Label
                     {
-                        Text           = historial.Titulo,
-                        TextColor      = Color.FromArgb("#97C459"),
-                        FontSize       = 13,
+                        Text = historial.Titulo,
+                        TextColor = Color.FromArgb("#97C459"),
+                        FontSize = 13,
                         FontAttributes = FontAttributes.Bold,
-                        Margin         = new Thickness(0, 0, 0, 4),
+                        Margin = new Thickness(0, 0, 0, 4),
                     });
 
                     foreach (var turno in historial.Turnos)
@@ -208,6 +216,7 @@ namespace RocLandSecurity.Views.Supervisor
             finally
             {
                 LoadingIndicator.IsVisible = false;
+                _cargandoHistorial = false;
             }
         }
 
