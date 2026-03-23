@@ -1,5 +1,6 @@
 using Microsoft.Data.SqlClient;
 using RocLandSecurity.Models;
+using static RocLandSecurity.AppConfig;
 
 namespace RocLandSecurity.Services
 {
@@ -108,13 +109,20 @@ namespace RocLandSecurity.Services
             if (count > 0)
                 throw new InvalidOperationException("Ya existe un turno para hoy.");
 
-            // Insertar turno
-            const string insertTurno = @"
+            // Insertar turno usando las variables de AppConfig
+            string horaInicio = HoraInicioTurno; // "19:00"
+            string horaFin = HoraFinTurno;       // "07:00"
+
+            const string insertTurnoTemplate = @"
                 INSERT INTO TBL_ROCLAND_SECURITY_TURNOS (Fecha, HoraInicio, HoraFin, GuardiaID)
-                VALUES (CAST(GETDATE() AS DATE), '20:00', '06:00', @guardiaID);
+                VALUES (CAST(GETDATE() AS DATE), @HoraInicio, @HoraFin, @GuardiaID);
                 SELECT SCOPE_IDENTITY();";
-            using var cmdInsert = new SqlCommand(insertTurno, conn);
-            cmdInsert.Parameters.AddWithValue("@guardiaID", guardiaID);
+
+            using var cmdInsert = new SqlCommand(insertTurnoTemplate, conn);
+            cmdInsert.Parameters.AddWithValue("@HoraInicio", horaInicio);
+            cmdInsert.Parameters.AddWithValue("@HoraFin", horaFin);
+            cmdInsert.Parameters.AddWithValue("@GuardiaID", guardiaID);
+
             var result = await cmdInsert.ExecuteScalarAsync();
             int turnoID = Convert.ToInt32(result);
 
@@ -128,12 +136,13 @@ namespace RocLandSecurity.Services
             cmdSP.Parameters.AddWithValue("@GuardiaID", guardiaID);
             await cmdSP.ExecuteNonQueryAsync();
 
+            // Devolver objeto Turno usando TimeOnly.Parse
             return new Turno
             {
                 ID = turnoID,
                 Fecha = DateOnly.FromDateTime(DateTime.Today),
-                HoraInicio = new TimeOnly(20, 0),
-                HoraFin = new TimeOnly(6, 0),
+                HoraInicio = TimeOnly.Parse(horaInicio),
+                HoraFin = TimeOnly.Parse(horaFin),
                 GuardiaID = guardiaID
             };
         }
