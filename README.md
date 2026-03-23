@@ -1,77 +1,77 @@
-RocLand Security
-RocLand Security is a mobile application developed with .NET MAUI designed for the management and monitoring of security rounds. It allows guards to perform tours, scan control points via QR codes, and report incidents, ensuring operational continuity even in environments without internet connectivity.
+# RocLand Security
 
-Key Features
-Cross-Platform Architecture: Compatible with Android, iOS, MacCatalyst, and Windows.
+RocLand Security is a mobile application developed with **.NET MAUI** for the management and monitoring of security rounds. It allows guards to perform tours, scan control points via QR codes, and report incidents, ensuring operational continuity even in environments without internet connectivity.
 
-Offline-First Design: The system allows guards to work without an internet connection. Data is stored in a local SQLite database and synchronized automatically once a connection is detected.
+---
 
-QR Scanning: Integrated with ZXing.Net.Maui for real-time validation of control points.
+## Key Features
 
-Role-Based Access: Specialized interfaces and permissions for Guards and Supervisors.
+- **Cross-Platform Architecture:** Compatible with Android, iOS, MacCatalyst, and Windows.
+- **Offline-First Design:** Guards can work without an internet connection. Data is stored in a local SQLite database and automatically synchronized when a connection is available.
+- **QR Scanning:** Integrated with `ZXing.Net.Maui` for real-time validation of control points.
+- **Role-Based Access:** Specialized interfaces and permissions for Guards and Supervisors.
+- **Intelligent Synchronization:** Automatic synchronization occurs during critical actions, upon reconnection, or via a background timer.
 
-Intelligent Synchronization: Automatic synchronization occurs during critical actions, upon reconnection, or via a background timer.
+---
 
-Technology Stack
-Framework: .NET 10.0 (MAUI).
+## Technology
 
-Local Database: SQLite using sqlite-net-pcl.
+- **Framework:** .NET 10.0 (MAUI)
+- **Local Database:** SQLite (`sqlite-net-pcl`)
+- **Server Database:** SQL Server (`Microsoft.Data.SqlClient`)
 
-Server Database: SQL Server using Microsoft.Data.SqlClient.
+**Key Libraries:**  
+- `ZXing.Net.Maui` – Camera handling and QR/barcode scanning
+- `Microsoft.Maui.Controls` – XAML-based user interface
 
-Key Libraries:
+---
 
-ZXing.Net.Maui: Camera handling and QR/barcode scanning.
+## Data Architecture
 
-Microsoft.Maui.Controls: XAML-based user interface.
+The application implements **bidirectional synchronization** between local storage and the central server:
 
-Data Architecture
-The application implements a bidirectional synchronization strategy between local storage and a central server:
+- **Local (SQLite):** Acts as an offline mirror. Stores cached user credentials, shifts, rounds, control points, and incidents.
+- **Server (SQL Server):** Single source of truth. Supervisor data and control point catalogs are downloaded, while guard activity is uploaded periodically.
 
-Local (SQLite): Acts as an offline mirror. It stores cached user credentials for offline login, shifts, rounds, control points, and incidents.
+**Synchronization Triggers:**
+- Application launch with an active connection
+- Completion of critical actions (finishing a round or reporting an incident)
+- Automatic detection of restored internet connectivity
+- Background timer executed every 5 minutes
 
-Server (SQL Server): Serves as the single source of truth. Supervisor data and control point catalogs are downloaded from the server, while guard activity is uploaded periodically.
+---
 
-Synchronization Triggers
-Application launch with an active connection.
+## Navigation
 
-Completion of critical actions, such as finishing a round or reporting an incident.
+The project uses **AppShell** to manage tab-based navigation, which changes dynamically based on the user's role:
+Guard: Rounds, History, Profile
+Supervisor: Control Panel, Incidents, General History, Profile
 
-Automatic detection of restored internet connectivity.
 
-Background timer executed every 5 minutes.
+The Login page (`MainPage`) is handled modally to separate the authentication flow from the main navigation Shell.
 
-Navigation
-The project utilizes AppShell to manage tab-based navigation that changes dynamically based on the user's role:
+---
 
-Guard: Access to Rounds, History, and Profile.
+## Environment Setup
 
-Supervisor: Access to Control Panel, Incidents, General History, and Profile.
+**Requirements:**
 
-The Login page (MainPage) is handled modally to separate the authentication flow from the main navigation Shell.
+- Visual Studio 2022 or VS Code with the .NET MAUI workload
+- .NET 10.0 SDK
+- Accessible SQL Server instance
 
-Environment Setup
-Requirements
-Visual Studio 2022 or VS Code with the .NET MAUI workload.
 
-.NET 10.0 SDK.
+**Installation:**
+1.- Clone the repository
+2.- Configure the connection string in MauiProgram.cs to point to your SQL Server database
+3.- Restore NuGet packages
+4.- Run the project on your preferred emulator or physical device
 
-Accessible SQL Server instance.
+---
 
-Installation
-Clone the repository.
+## Project Structure
 
-Configure the connection string in MauiProgram.cs to point to your SQL Server database.
-
-Restore NuGet packages.
-
-Run the project on your preferred emulator or physical device.
-
-Project Structure
-/Models: Data entity definitions for SQL and SQLite.
-
-/Services: Business logic, local database management, synchronization, and connectivity services.
-
-/Views: User interfaces categorized by role (Guard, Supervisor) and shared components.
-
-/Resources: Icons, custom fonts, and application imagery.
+/Models -> Data entity definitions for SQL and SQLite
+/Services -> Business logic, local database management, synchronization, and connectivity services
+/Views -> User interfaces categorized by role (Guard, Supervisor) and shared components
+/Resources -> Icons, custom fonts, and application images
