@@ -127,13 +127,28 @@ namespace RocLandSecurity.Views.Supervisor
             card.StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle
             { CornerRadius = new CornerRadius(12) };
 
+            // ── TAP para abrir el desglose del rondín ────────────────────────────
+            var tap = new TapGestureRecognizer();
+            tap.Tapped += async (s, e) =>
+            {
+                // Feedback visual breve
+                await card.FadeToAsync(0.6, 80);
+                await card.FadeToAsync(1.0, 80);
+
+                // Navegar a la página de detalle
+                await Navigation.PushModalAsync(
+                    new RondinDetalleSupervisorPage(_db, rondin.ID));
+            };
+            card.GestureRecognizers.Add(tap);
+            // ─────────────────────────────────────────────────────────────────────
+
             var innerGrid = new Grid
             {
                 ColumnDefinitions = new ColumnDefinitionCollection
-                {
-                    new ColumnDefinition { Width = new GridLength(4) },
-                    new ColumnDefinition { Width = GridLength.Star },
-                }
+        {
+            new ColumnDefinition { Width = new GridLength(4) },
+            new ColumnDefinition { Width = GridLength.Star },
+        }
             };
 
             // Barra lateral
@@ -145,16 +160,16 @@ namespace RocLandSecurity.Views.Supervisor
             {
                 Padding = new Thickness(14, 12),
                 RowDefinitions = new RowDefinitionCollection
-                {
-                    new RowDefinition { Height = GridLength.Auto },
-                    new RowDefinition { Height = GridLength.Auto },
-                    new RowDefinition { Height = GridLength.Auto },
-                },
+        {
+            new RowDefinition { Height = GridLength.Auto },
+            new RowDefinition { Height = GridLength.Auto },
+            new RowDefinition { Height = GridLength.Auto },
+        },
                 ColumnDefinitions = new ColumnDefinitionCollection
-                {
-                    new ColumnDefinition { Width = GridLength.Star },
-                    new ColumnDefinition { Width = GridLength.Auto },
-                }
+        {
+            new ColumnDefinition { Width = GridLength.Star },
+            new ColumnDefinition { Width = GridLength.Auto },
+        }
             };
             Grid.SetColumn(contenido, 1);
 
@@ -220,7 +235,7 @@ namespace RocLandSecurity.Views.Supervisor
             contenido.Children.Add(lblInfo);
             contenido.Children.Add(progress);
 
-            // Si tiene incidencia, mostrar aviso
+            // Incidencia
             if (rondin.Estado == 4 || (rondin.Estado == 2 && rondin.PuntosVisitados < rondin.PuntosTotal))
             {
                 var lblIncidencia = new Label
@@ -237,8 +252,33 @@ namespace RocLandSecurity.Views.Supervisor
                 contenido.Children.Add(lblIncidencia);
             }
 
+            // Indicador de que es tappable (flecha discreta)
+            var lblChevron = new Label
+            {
+                Text = "›",
+                TextColor = Color.FromArgb("#444444"),
+                FontSize = 20,
+                VerticalOptions = LayoutOptions.Center,
+                Margin = new Thickness(0, 0, 4, 0),
+            };
+            // Añadir la flecha al final de la primera fila, columna 1 (reemplaza el badge)
+            // En realidad lo ponemos en el innerGrid como overlay a la derecha
+            var wrapperGrid = new Grid
+            {
+                ColumnDefinitions = new ColumnDefinitionCollection
+        {
+            new ColumnDefinition { Width = GridLength.Star },
+            new ColumnDefinition { Width = new GridLength(20) },
+        }
+            };
+            Grid.SetColumn(contenido, 0); // mover contenido a col 0 del wrapper
+            wrapperGrid.Children.Add(contenido);
+            Grid.SetColumn(lblChevron, 1);
+            wrapperGrid.Children.Add(lblChevron);
+            Grid.SetColumn(wrapperGrid, 1);
+
             innerGrid.Children.Add(barra);
-            innerGrid.Children.Add(contenido);
+            innerGrid.Children.Add(wrapperGrid);
             card.Content = innerGrid;
 
             return card;
