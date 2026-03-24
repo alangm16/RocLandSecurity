@@ -241,9 +241,9 @@ namespace RocLandSecurity.Views.Guardia
                 : Color.FromArgb("#6DBF2E");
             ToastFrame.IsVisible = true;
             ToastFrame.Opacity   = 0;
-            await ToastFrame.FadeTo(1, 200);
+            await ToastFrame.FadeToAsync(1, 200);
             await Task.Delay(2200);
-            await ToastFrame.FadeTo(0, 200);
+            await ToastFrame.FadeToAsync(0, 200);
             ToastFrame.IsVisible = false;
         }
     }

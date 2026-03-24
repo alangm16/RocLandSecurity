@@ -24,6 +24,7 @@ namespace RocLandSecurity
         protected override void OnAppearing()
         {
             base.OnAppearing();
+            ReiniciarCamara();
 
             var notificationService = IPlatformApplication.Current?.Services.GetService<INotificationManagerService>();
             if (notificationService != null)
