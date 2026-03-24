@@ -177,27 +177,111 @@ namespace RocLandSecurity.Services
 
         /// <summary>
         /// Iniciar rondín: escribe en local siempre, sube a servidor si hay red.
+        /// La validación de horario se realiza en el servidor usando AppConfig.
         /// </summary>
-        public async Task IniciarRondinAsync(int rondinID, bool modoEstricto = false)
+        public async Task IniciarRondinAsync(int rondinID)
         {
-            // Actualizar local
             var local = await _local.GetRondinPorIDAsync(rondinID);
-            if (local != null)
+            if (local == null) throw new InvalidOperationException("Rondín no encontrado.");
+            if (local.Estado >= 1) return; // Ya iniciado, no hacer nada
+
+            // ── Validar horario ANTES de escribir, usando la misma lógica que el servidor ──
+            if (AppConfig.ModoEstrictoRondines)
             {
-                if (local.Estado >= 1) return; // Ya iniciado
-                local.Estado = 1;
-                local.HoraInicio = DateTime.Now;
-                local.Sincronizado = false;
-                local.FechaModificacion = DateTime.Now;
-                await _local.UpsertRondinAsync(local);
+                var ahora = DateTime.Now;
+                var apertura = local.HoraProgramada.AddMinutes(-AppConfig.VentanaInicioAntesMinutos);
+                var cierre = local.HoraProgramada.AddMinutes(AppConfig.VentanaInicioDespuesMinutos);
+
+                if (ahora < apertura)
+                    throw new InvalidOperationException(
+                        $"El rondín aún no está disponible. " +
+                        $"Disponible desde las {apertura:HH:mm} hrs.");
+
+                if (ahora > cierre)
+                    throw new InvalidOperationException(
+                        $"El rondín de las {local.HoraProgramada:HH:mm} ya no puede iniciarse. " +
+                        $"El tiempo límite fue {cierre:HH:mm} hrs.");
             }
 
-            // Intentar subir al servidor si hay red
+            // ── Validar que no haya otro rondín en progreso ──
+            var rondinesDelTurno = await _local.GetRondinesPorTurnoAsync(local.TurnoID);
+            bool hayOtroEnProgreso = rondinesDelTurno.Any(r => r.Estado == 1 && r.ID != rondinID);
+            if (hayOtroEnProgreso)
+                throw new InvalidOperationException(
+                    "Ya hay un rondín en progreso. Finalízalo antes de iniciar otro.");
+
+            // ── Solo después de pasar las validaciones, escribir en local ──
+            local.Estado = 1;
+            local.HoraInicio = DateTime.Now;
+            local.Sincronizado = false;
+            local.FechaModificacion = DateTime.Now;
+            await _local.UpsertRondinAsync(local);
+
+            // ── Intentar subir al servidor (errores no críticos) ──
             if (await _connectivity.CheckServerAsync())
             {
-                try { await _server.IniciarRondinAsync(rondinID, modoEstricto); }
-                catch { /* Quedará pendiente de sync */ }
+                try { await _server.IniciarRondinAsync(rondinID); }
+                catch { /* El registro local ya es válido; se sincronizará después */ }
             }
+        }
+
+        /// <summary>
+        /// Revisa todos los rondines del turno y cierra automáticamente los que hayan
+        /// superado su ventana de tiempo. Se llama desde GuardiaHomePage antes de renderizar.
+        ///
+        /// Casos cubiertos:
+        ///   A) Pendiente (Estado=0) cuyo cierre ya pasó   → Estado=3, 0 puntos visitados.
+        ///   B) En progreso (Estado=1) cuyo cierre ya pasó → Estado=3, puntos visitados hasta ese momento.
+        ///
+        /// Devuelve la cantidad de rondines que fueron cerrados, para que la UI pueda
+        /// mostrar un aviso si lo desea.
+        /// </summary>
+        public async Task<int> ExpirarRondinesVencidosAsync(int turnoID)
+        {
+            if (!AppConfig.ModoEstrictoRondines) return 0;
+
+            var rondines = await _local.GetRondinesPorTurnoAsync(turnoID);
+            var ahora = DateTime.Now;
+            int cerrados = 0;
+
+            foreach (var r in rondines)
+            {
+                // Solo aplica a rondines aún "abiertos"
+                if (r.Estado >= 2) continue;
+
+                var cierre = r.HoraProgramada.AddMinutes(AppConfig.VentanaInicioDespuesMinutos);
+                if (ahora <= cierre) continue;
+
+                // El rondín venció — calcular estado final
+                var puntos = await _local.GetPuntosDeRondinAsync(r.ID);
+                r.Estado = 3; // Incompleto
+                r.HoraFin = r.HoraFin ?? cierre; // Usar hora de cierre si aún no tiene
+                r.PuntosTotal = puntos.Count > 0 ? puntos.Count : r.PuntosTotal;
+                r.PuntosVisitados = puntos.Count(p => p.Estado == 1);
+                r.Sincronizado = false;
+                r.FechaModificacion = ahora;
+                await _local.UpsertRondinAsync(r);
+
+                // Marcar puntos pendientes como omitidos en local
+                foreach (var p in puntos.Where(p => p.Estado == 0))
+                {
+                    p.Estado = 2; // Omitido
+                    p.Sincronizado = false;
+                    p.FechaModificacion = ahora;
+                    await _local.UpsertRondinPuntoAsync(p);
+                }
+
+                // Intentar persistir en servidor
+                if (await _connectivity.CheckServerAsync())
+                {
+                    try { await _server.FinalizarRondinAsync(r.ID); }
+                    catch { /* Se sincronizará en el siguiente ciclo */ }
+                }
+
+                cerrados++;
+            }
+
+            return cerrados;
         }
 
         public async Task<int> AsegurarPuntosRondinAsync(int rondinID)

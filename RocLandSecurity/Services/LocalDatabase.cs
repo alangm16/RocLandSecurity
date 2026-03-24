@@ -237,7 +237,7 @@ namespace RocLandSecurity.Services
 
         public async Task LimpiarDatosViejosAsync()
         {
-            var corte = DateTime.Today.AddDays(-7);
+            var corte = DateTime.Today.AddDays(-AppConfig.RetencionDatosSync);
 
             // Obtener IDs de turnos viejos sincronizados
             var turnosViejos = await Db.Table<TurnoLocal>()
