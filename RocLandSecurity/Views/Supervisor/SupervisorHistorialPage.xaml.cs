@@ -342,36 +342,54 @@ namespace RocLandSecurity.Views.Supervisor
         private View CrearFichaRondin(HistorialRondinDia rondin)
         {
             var clr = Color.FromArgb(rondin.EstadoColor);
-            var bg  = Color.FromArgb(rondin.EstadoColorFondo);
+            var bg = Color.FromArgb(rondin.EstadoColorFondo);
 
             var row = new Border
             {
                 BackgroundColor = Color.FromArgb("#141414"),
                 StrokeThickness = 0.5,
-                Stroke          = Color.FromArgb("#2A2A2A"),
-                Padding         = new Thickness(12, 10),
+                Stroke = Color.FromArgb("#2A2A2A"),
+                Padding = new Thickness(12, 10),
             };
             row.StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle
-                { CornerRadius = new CornerRadius(10) };
+            { CornerRadius = new CornerRadius(10) };
+
+            // ── TAP: abrir desglose del rondín ──────────────────────────────────
+            // Solo rondines reales (ID > 0). Los "sueltos" (ID = -1) no tienen
+            // puntos de control, así que no navegamos en ese caso.
+            if (rondin.ID > 0)
+            {
+                var tap = new TapGestureRecognizer();
+                tap.Tapped += async (s, e) =>
+                {
+                    await row.FadeTo(0.6, 70);
+                    await row.FadeTo(1.0, 70);
+                    await Navigation.PushModalAsync(
+                        new RondinDetalleSupervisorPage(_db, rondin.ID));
+                };
+                row.GestureRecognizers.Add(tap);
+            }
+            // ───────────────────────────────────────────────────────────────────
 
             var grid = new Grid
             {
                 ColumnDefinitions =
-                {
-                    new ColumnDefinition { Width = GridLength.Auto },
-                    new ColumnDefinition { Width = GridLength.Star },
-                    new ColumnDefinition { Width = GridLength.Auto },
-                    new ColumnDefinition { Width = GridLength.Auto },
-                },
+        {
+            new ColumnDefinition { Width = GridLength.Auto },  // Hora
+            new ColumnDefinition { Width = GridLength.Star },  // Puntos
+            new ColumnDefinition { Width = GridLength.Auto },  // Incidencias (opcional)
+            new ColumnDefinition { Width = GridLength.Auto },  // Badge estado
+            new ColumnDefinition { Width = new GridLength(16) }, // Chevron
+        },
                 ColumnSpacing = 8,
             };
 
             // Hora
             grid.Children.Add(new Label
             {
-                Text           = rondin.HoraStr,
-                TextColor      = Colors.White,
-                FontSize       = 14,
+                Text = rondin.HoraStr,
+                TextColor = Colors.White,
+                FontSize = 14,
                 FontAttributes = FontAttributes.Bold,
                 VerticalOptions = LayoutOptions.Center,
             });
@@ -380,9 +398,9 @@ namespace RocLandSecurity.Views.Supervisor
             // Puntos
             grid.Children.Add(new Label
             {
-                Text      = rondin.PuntosStr,
+                Text = rondin.PuntosStr,
                 TextColor = Color.FromArgb("#888888"),
-                FontSize  = 12,
+                FontSize = 12,
                 VerticalOptions = LayoutOptions.Center,
             });
             Grid.SetColumn(grid.Children.Last() as View, 1);
@@ -393,26 +411,26 @@ namespace RocLandSecurity.Views.Supervisor
                 var incRow = new Grid
                 {
                     ColumnDefinitions =
-                    {
-                        new ColumnDefinition { Width = GridLength.Auto },
-                        new ColumnDefinition { Width = GridLength.Auto },
-                    },
+            {
+                new ColumnDefinition { Width = GridLength.Auto },
+                new ColumnDefinition { Width = GridLength.Auto },
+            },
                     ColumnSpacing = 4,
                     VerticalOptions = LayoutOptions.Center,
                 };
                 incRow.Children.Add(new Image
                 {
-                    Source        = "warning.png",
-                    WidthRequest  = 12,
+                    Source = "warning.png",
+                    WidthRequest = 12,
                     HeightRequest = 12,
                     VerticalOptions = LayoutOptions.Center,
                 });
                 Grid.SetColumn(incRow.Children.Last() as View, 0);
                 incRow.Children.Add(new Label
                 {
-                    Text      = rondin.IncidenciasCount.ToString(),
+                    Text = rondin.IncidenciasCount.ToString(),
                     TextColor = Color.FromArgb("#F09595"),
-                    FontSize  = 11,
+                    FontSize = 11,
                     FontAttributes = FontAttributes.Bold,
                     VerticalOptions = LayoutOptions.Center,
                 });
@@ -426,25 +444,39 @@ namespace RocLandSecurity.Views.Supervisor
             {
                 BackgroundColor = bg,
                 StrokeThickness = 1,
-                Stroke          = clr,
-                Padding         = new Thickness(6, 3),
+                Stroke = clr,
+                Padding = new Thickness(6, 3),
                 VerticalOptions = LayoutOptions.Center,
             };
             badge.StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle
-                { CornerRadius = new CornerRadius(6) };
+            { CornerRadius = new CornerRadius(6) };
             badge.Content = new Label
             {
-                Text           = rondin.EstadoTexto,
-                TextColor      = clr,
-                FontSize       = 10,
+                Text = rondin.EstadoTexto,
+                TextColor = clr,
+                FontSize = 10,
                 FontAttributes = FontAttributes.Bold,
             };
             Grid.SetColumn(badge, 3);
             grid.Children.Add(badge);
 
+            // Chevron (solo si es tappable)
+            if (rondin.ID > 0)
+            {
+                grid.Children.Add(new Label
+                {
+                    Text = "›",
+                    TextColor = Color.FromArgb("#444444"),
+                    FontSize = 18,
+                    VerticalOptions = LayoutOptions.Center,
+                    HorizontalOptions = LayoutOptions.Center,
+                });
+                Grid.SetColumn(grid.Children.Last() as View, 4);
+            }
+
             row.Content = grid;
 
-            // Si hay incidencias, envolver en VerticalStackLayout y agregar descripción
+            // Si hay incidencias, envolver con sus descripciones debajo
             if (rondin.TieneIncidencias && rondin.Incidencias.Count > 0)
             {
                 var wrapper = new VerticalStackLayout { Spacing = 6 };
@@ -455,29 +487,29 @@ namespace RocLandSecurity.Views.Supervisor
                     var incFila = new Grid
                     {
                         ColumnDefinitions =
-                        {
-                            new ColumnDefinition { Width = GridLength.Auto },
-                            new ColumnDefinition { Width = GridLength.Star },
-                        },
+                {
+                    new ColumnDefinition { Width = GridLength.Auto },
+                    new ColumnDefinition { Width = GridLength.Star },
+                },
                         ColumnSpacing = 6,
                     };
 
                     incFila.Children.Add(new Image
                     {
-                        Source          = "warning.png",
-                        WidthRequest    = 11,
-                        HeightRequest   = 11,
+                        Source = "warning.png",
+                        WidthRequest = 11,
+                        HeightRequest = 11,
                         VerticalOptions = LayoutOptions.Center,
                     });
                     Grid.SetColumn(incFila.Children.Last() as View, 0);
 
                     incFila.Children.Add(new Label
                     {
-                        Text          = inc.Descripcion,
-                        TextColor     = Color.FromArgb("#F09595"),
-                        FontSize      = 11,
+                        Text = inc.Descripcion,
+                        TextColor = Color.FromArgb("#F09595"),
+                        FontSize = 11,
                         LineBreakMode = LineBreakMode.TailTruncation,
-                        MaxLines      = 2,
+                        MaxLines = 2,
                         VerticalOptions = LayoutOptions.Center,
                     });
                     Grid.SetColumn(incFila.Children.Last() as View, 1);
@@ -486,6 +518,23 @@ namespace RocLandSecurity.Views.Supervisor
                 }
 
                 row.Content = wrapper;
+
+                // El tap también debe ir en el wrapper cuando hay incidencias
+                // (row.GestureRecognizers ya lo tiene, pero el content cambió a wrapper)
+                // Solución: envolver todo en un ContentView con el tap
+                if (rondin.ID > 0)
+                {
+                    row.GestureRecognizers.Clear();
+                    var outerTap = new TapGestureRecognizer();
+                    outerTap.Tapped += async (s, e) =>
+                    {
+                        await row.FadeToAsync(0.6, 70);
+                        await row.FadeToAsync(1.0, 70);
+                        await Navigation.PushModalAsync(
+                            new RondinDetalleSupervisorPage(_db, rondin.ID));
+                    };
+                    row.GestureRecognizers.Add(outerTap);
+                }
             }
 
             return row;
