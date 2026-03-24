@@ -48,7 +48,7 @@ namespace RocLandSecurity.Services
         // ARRANQUE DEL TIMER
         // ─────────────────────────────────────────────────────────────────
 
-        public void IniciarTimerSync(int intervalMinutos = 5)
+        public void IniciarTimerSync(int intervalMinutos = AppConfig.SyncTimerIntervaloMinutos)
         {
             _timer?.Dispose();
             _timer = new Timer(async _ =>
