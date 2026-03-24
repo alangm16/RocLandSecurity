@@ -23,6 +23,7 @@ namespace RocLandSecurity.Views.Guardia
         private bool _flashEncendido = false;
         private DateTime _horaProgramada = DateTime.MinValue;
         private int _turnoId = 0;
+        private System.Timers.Timer? _expiracionTimer;
 
         public RondinActivoPage(OfflineDatabaseService offline, SessionService session)
         {
@@ -40,15 +41,70 @@ namespace RocLandSecurity.Views.Guardia
             base.OnAppearing();
             if (_rondinId == 0) return;
             await IniciarYCargarAsync();
+
+            // Timer que verifica cada 30 segundos si el rondín expiró mientras el guardia escaneaba.
+            if (AppConfig.ModoEstrictoRondines)
+            {
+                _expiracionTimer = new System.Timers.Timer(30_000);
+                _expiracionTimer.Elapsed += async (s, e) =>
+                    await MainThread.InvokeOnMainThreadAsync(VerificarExpiracionAsync);
+                _expiracionTimer.Start();
+            }
         }
 
         protected override void OnDisappearing()
         {
             base.OnDisappearing();
+            _expiracionTimer?.Stop();
+            _expiracionTimer?.Dispose();
+            _expiracionTimer = null;
             QrScanner.IsDetecting = false;
             QrScanner.IsTorchOn = false;
             PanelScanner.IsVisible = false;
             _flashEncendido = false;
+        }
+
+        // ─────────────────────────────────────────────────────────────────
+        // EXPIRACIÓN EN TIEMPO REAL
+        // ─────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Llamado por el timer cada 30 s.
+        /// Si el tiempo de cierre del rondín ya pasó y el rondín sigue abierto,
+        /// lo cierra automáticamente, apaga el escáner y regresa al home.
+        /// </summary>
+        private async Task VerificarExpiracionAsync()
+        {
+            if (_finalizando || _horaProgramada == DateTime.MinValue) return;
+
+            var cierre = _horaProgramada.AddMinutes(AppConfig.VentanaInicioDespuesMinutos);
+            if (DateTime.Now <= cierre) return;
+
+            // El tiempo venció — detener todo primero para evitar acciones paralelas
+            _finalizando = true;
+            _expiracionTimer?.Stop();
+
+            if (QrScanner != null)
+            {
+                QrScanner.IsDetecting = false;
+                QrScanner.IsTorchOn = false;
+            }
+            PanelScanner.IsVisible = false;
+            _flashEncendido = false;
+
+            // Cerrar el rondín localmente (y subir al servidor si hay red)
+            try
+            {
+                await _offline.FinalizarRondinAsync(_rondinId);
+            }
+            catch { /* No crítico: ya se sincronizará */ }
+
+            await ShowToastAsync(
+                $"Tiempo del rondín de las {_horaProgramada:HH:mm} finalizado. " +
+                $"Se cerró automáticamente.", isError: true);
+
+            await Task.Delay(2800);
+            await Shell.Current.GoToAsync("..");
         }
 
         // ─────────────────────────────────────────────────────────────────
@@ -80,7 +136,7 @@ namespace RocLandSecurity.Views.Guardia
                 LblEstadoRondin.Text = $"Verificando {totalPuntos} puntos...";
 
                 // Iniciar o retomar — nunca lanza error por estado
-                await _offline.IniciarRondinAsync(_rondinId, modoEstricto: false);
+                await _offline.IniciarRondinAsync(_rondinId);
 
                 // Cargar puntos
                 _puntos = await _offline.GetPuntosDeRondinAsync(_rondinId);
@@ -283,6 +339,17 @@ namespace RocLandSecurity.Views.Guardia
         private async void OnEscanearClicked(object? sender, EventArgs e)
         {
             if (_puntoActual == null) return;
+
+            // Verificar que el tiempo del rondín no haya vencido justo en este momento
+            if (AppConfig.ModoEstrictoRondines && _horaProgramada != DateTime.MinValue)
+            {
+                var cierre = _horaProgramada.AddMinutes(AppConfig.VentanaInicioDespuesMinutos);
+                if (DateTime.Now > cierre)
+                {
+                    await VerificarExpiracionAsync();
+                    return;
+                }
+            }
 
             var status = await Permissions.RequestAsync<Permissions.Camera>();
             if (status != PermissionStatus.Granted)

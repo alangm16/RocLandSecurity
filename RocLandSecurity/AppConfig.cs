@@ -16,8 +16,9 @@ namespace RocLandSecurity
         // ─────────────────────────────────────────────────────────────────
 
         /// <summary>Cadena de conexión construida a partir de los componentes.</summary>
-        public const string ConnectionString = 
+        public const string ConnectionString =
             
+
 
         // ─────────────────────────────────────────────────────────────────
         // Turnos
@@ -51,6 +52,7 @@ namespace RocLandSecurity
         // ─────────────────────────────────────────────────────────────────
         // Rondines - Ventanas de tiempo y estado
         // Usado en: DatabaseService.cs (IniciarRondinAsync) y RondinActivoPage.xaml.cs
+        // Integrado en IniciarRondinAsync y en RondinActivoPage y Funcionando Correctamente
         // ─────────────────────────────────────────────────────────────────
         /// <summary>Minutos antes de la hora programada que se permite iniciar un rondín.</summary>
         public static int VentanaInicioAntesMinutos = 5;
@@ -65,29 +67,25 @@ namespace RocLandSecurity
         // ─────────────────────────────────────────────────────────────────
         // Sincronización (Sync)
         // Usado en: App.xaml.cs, SyncService.cs, LocalDatabase.cs
+        // Integrado y Funcionando
         // ─────────────────────────────────────────────────────────────────
         /// <summary>Intervalo en minutos del timer de sincronización automática.</summary>
-        public static int SyncTimerIntervaloMinutos = 5;
+        public const int SyncTimerIntervaloMinutos = 5;
         /// <summary>Días que se conservan los datos locales después de sincronizados.</summary>
         public static int RetencionDatosSync = 7;
 
         // ─────────────────────────────────────────────────────────────────
-        // Conectividad
-        // Usado en: ConnectivityService.cs
-        // ─────────────────────────────────────────────────────────────────
-        /// <summary>Tiempo máximo (segundos) para el test de conectividad TCP.</summary>
-        public static int ConnectivityTimeoutSegundos = 3;
-
-        // ─────────────────────────────────────────────────────────────────
-        // Historial y consultas
+        // DE MOMENTO NO SE INTEGRARA
+        // Historial y consultas 
         // Usado en: DatabaseService.cs (GetIncidenciasSemanaAsync)
         // ─────────────────────────────────────────────────────────────────
         /// <summary>Días hacia atrás que se muestran en el listado de incidencias del supervisor.</summary>
         public static int IncidenciasDiasAtras = 7;
 
         // ─────────────────────────────────────────────────────────────────
-        // UI – Duración de animaciones y mensajes (milisegundos)
-        // Usado en: Varias páginas (MainPage, RondinActivoPage, ReportarIncidenciaPage, etc.)
+        // DE MOMENTO NO SE INTEGRARA
+        // UI – Duración de animaciones y mensajes (milisegundos) 
+        // Usado en: Varios (MainPage, RondinActivoPage, ReportarIncidenciaPage, etc.)
         // ─────────────────────────────────────────────────────────────────
         public static int ToastDuracionMs = 2500;
         public static int ToastDuracionCortaMs = 2000;

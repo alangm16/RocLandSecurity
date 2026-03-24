@@ -10,18 +10,44 @@ namespace RocLandSecurity.Views.Guardia
         private readonly SessionService _session;
         private Turno? _turnoActivo;
         private List<Rondin> _rondines = new();
+        private System.Timers.Timer? _refreshTimer;
 
         public GuardiaHomePage(OfflineDatabaseService offline, SessionService session)
         {
             InitializeComponent();
             _offline = offline;
             _session = session;
+
         }
 
         protected override async void OnAppearing()
         {
             base.OnAppearing();
             await CargarDatosAsync();
+
+            // Si modo estricto está activo, iniciar timer para refrescar UI
+            if (AppConfig.ModoEstrictoRondines)
+            {
+                _refreshTimer = new System.Timers.Timer(60000); // Cada 60 segundos
+                _refreshTimer.Elapsed += async (s, e) =>
+                {
+                    if (PanelRondines.IsVisible)
+                    {
+                        await MainThread.InvokeOnMainThreadAsync(async () =>
+                        {
+                            await CargarDatosAsync();
+                        });
+                    }
+                };
+                _refreshTimer.Start();
+            }
+        }
+
+        protected override void OnDisappearing()
+        {
+            base.OnDisappearing();
+            _refreshTimer?.Stop();
+            _refreshTimer?.Dispose();
         }
 
         // ─────────────────────────────────────────────────────────────────
@@ -50,6 +76,11 @@ namespace RocLandSecurity.Views.Guardia
                     MostrarSinTurno();
                 else
                 {
+                    // Cerrar automáticamente los rondines cuya ventana de tiempo venció
+                    // antes de renderizar, para que la UI refleje el estado real.
+                    if (AppConfig.ModoEstrictoRondines)
+                        await _offline.ExpirarRondinesVencidosAsync(_turnoActivo.ID);
+
                     _rondines = await _offline.GetRondinesPorTurnoAsync(_turnoActivo.ID);
                     MostrarRondines();
                 }
@@ -291,10 +322,10 @@ namespace RocLandSecurity.Views.Guardia
             var innerGrid = new Grid
             {
                 ColumnDefinitions =
-                {
-                    new ColumnDefinition { Width = new GridLength(4) },
-                    new ColumnDefinition { Width = GridLength.Star },
-                }
+        {
+            new ColumnDefinition { Width = new GridLength(4) },
+            new ColumnDefinition { Width = GridLength.Star },
+        }
             };
 
             innerGrid.Children.Add(new BoxView
@@ -314,16 +345,16 @@ namespace RocLandSecurity.Views.Guardia
             {
                 Padding = new Thickness(14, 12),
                 RowDefinitions =
-                {
-                    new RowDefinition { Height = GridLength.Auto },
-                    new RowDefinition { Height = GridLength.Auto },
-                    new RowDefinition { Height = GridLength.Auto },
-                },
+        {
+            new RowDefinition { Height = GridLength.Auto },
+            new RowDefinition { Height = GridLength.Auto },
+            new RowDefinition { Height = GridLength.Auto },
+        },
                 ColumnDefinitions =
-                {
-                    new ColumnDefinition { Width = GridLength.Star },
-                    new ColumnDefinition { Width = GridLength.Auto },
-                }
+        {
+            new ColumnDefinition { Width = GridLength.Star },
+            new ColumnDefinition { Width = GridLength.Auto },
+        }
             };
             Grid.SetColumn(contenido, 1);
 
@@ -408,16 +439,33 @@ namespace RocLandSecurity.Views.Guardia
             // Botón iniciar — solo en el primer rondín pendiente
             if (rondin.EsIniciable && EsPrimerPendiente(rondin))
             {
+                var estadoInicio = EvaluarEstadoInicio(rondin);
+
+                string btnTexto = estadoInicio switch
+                {
+                    EstadoInicioRondin.Disponible => "Iniciar rondín",
+                    EstadoInicioRondin.Pronto     => $"Disponible a las {rondin.HoraProgramada.AddMinutes(-AppConfig.VentanaInicioAntesMinutos):HH:mm}",
+                    EstadoInicioRondin.Vencido    => $"Tiempo vencido — {rondin.HoraProgramada.AddMinutes(AppConfig.VentanaInicioDespuesMinutos):HH:mm}",
+                    _                              => "No disponible"
+                };
+                Color btnFondo = estadoInicio == EstadoInicioRondin.Disponible
+                    ? Color.FromArgb("#6DBF2E")
+                    : Color.FromArgb("#555555");
+                Color btnTextoClr = estadoInicio == EstadoInicioRondin.Disponible
+                    ? Color.FromArgb("#111111")
+                    : Color.FromArgb("#AAAAAA");
+
                 var btn = new Button
                 {
-                    Text = "Iniciar rondín",
-                    BackgroundColor = Color.FromArgb("#6DBF2E"),
-                    TextColor = Color.FromArgb("#111111"),
+                    Text = btnTexto,
+                    BackgroundColor = btnFondo,
+                    TextColor = btnTextoClr,
                     FontAttributes = FontAttributes.Bold,
                     FontSize = 14,
                     CornerRadius = 10,
                     HeightRequest = 50,
                     Margin = new Thickness(0, 12, 0, 0),
+                    IsEnabled = estadoInicio == EstadoInicioRondin.Disponible,
                 };
                 btn.Clicked += async (s, e) => await IrARondinActivoAsync(rondin);
 
@@ -465,6 +513,33 @@ namespace RocLandSecurity.Views.Guardia
         // ─────────────────────────────────────────────────────────────────
         // EVENTOS
         // ─────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Evalúa si un rondín puede iniciarse en este momento según AppConfig.
+        /// Retorna:
+        ///   Disponible  → dentro de la ventana, botón verde habilitado.
+        ///   Pronto      → antes de la apertura, botón gris con hora de apertura.
+        ///   Vencido     → después del cierre (no debería verse en pendientes
+        ///                 porque ExpirarRondinesVencidosAsync ya lo cerró, pero
+        ///                 se maneja por si acaso el timer aún no corrió).
+        /// </summary>
+        private enum EstadoInicioRondin { Disponible, Pronto, Vencido }
+
+        private EstadoInicioRondin EvaluarEstadoInicio(Rondin rondin)
+        {
+            if (!AppConfig.ModoEstrictoRondines) return EstadoInicioRondin.Disponible;
+
+            var ahora = DateTime.Now;
+            var apertura = rondin.HoraProgramada.AddMinutes(-AppConfig.VentanaInicioAntesMinutos);
+            var cierre   = rondin.HoraProgramada.AddMinutes(AppConfig.VentanaInicioDespuesMinutos);
+
+            if (ahora < apertura)  return EstadoInicioRondin.Pronto;
+            if (ahora > cierre)    return EstadoInicioRondin.Vencido;
+            return EstadoInicioRondin.Disponible;
+        }
+
+        private bool PuedeIniciarRondin(Rondin rondin) =>
+            EvaluarEstadoInicio(rondin) == EstadoInicioRondin.Disponible;
 
         private async void OnIniciarTurnoClicked(object sender, EventArgs e)
         {

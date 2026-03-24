@@ -26,11 +26,11 @@ namespace RocLandSecurity
 
             shell.Loaded += async (s, e) =>
             {
-                // 1. Inicializar SQLite (una sola vez, aquí)
+                // 1. Inicializar SQLite (una sola vez)
                 await _localDb.InitAsync();
 
-                // 2. Arrancar timer de sync (5 min)
-                _sync.IniciarTimerSync(intervalMinutos: 5);
+                // 2. Arrancar timer de sync (5 min viene de AppConfig)
+                _sync.IniciarTimerSync(intervalMinutos: AppConfig.SyncTimerIntervaloMinutos);
 
                 // 3. Sync inicial si hay red (en background, no bloquea login)
                 bool online = await _connectivity.CheckServerAsync();

@@ -196,69 +196,78 @@ namespace RocLandSecurity.Services
 
         /// <summary>
         /// Valida que el rondín se pueda iniciar según la hora programada.
-        /// modoEstricto=true aplica la ventana horaria (±5 min antes, máx 90 min después).
-        /// modoEstricto=false permite iniciar siempre (para pruebas).
+        /// Usa configuración global desde AppConfig.
         /// Lanza InvalidOperationException si no es posible iniciar.
         /// </summary>
-        public async Task IniciarRondinAsync(int rondinID, bool modoEstricto = false)
+        public async Task IniciarRondinAsync(int rondinID)
         {
             using var conn = new SqlConnection(connectionString);
             await conn.OpenAsync();
 
             // Obtener HoraProgramada y Estado actual
             const string selectQuery = @"
-                SELECT HoraProgramada, Estado
-                FROM TBL_ROCLAND_SECURITY_RONDINES
-                WHERE ID = @rondinID";
-            using var cmdSelect = new SqlCommand(selectQuery, conn);
-            cmdSelect.Parameters.AddWithValue("@rondinID", rondinID);
-            using var reader = await cmdSelect.ExecuteReaderAsync();
-            if (!await reader.ReadAsync())
-                throw new InvalidOperationException("Rondín no encontrado.");
+            SELECT HoraProgramada, Estado
+            FROM TBL_ROCLAND_SECURITY_RONDINES
+            WHERE ID = @rondinID";
+                using var cmdSelect = new SqlCommand(selectQuery, conn);
+                cmdSelect.Parameters.AddWithValue("@rondinID", rondinID);
 
-            var horaProgramada = reader.GetDateTime(0);
-            var estadoActual = reader.GetInt32(1);
-            reader.Close();
+                using var reader = await cmdSelect.ExecuteReaderAsync();
+                if (!await reader.ReadAsync())
+                    throw new InvalidOperationException("Rondín no encontrado.");
 
-            // Ya iniciado o finalizado — solo continuar, no modificar estado
-            if (estadoActual >= 1) return;
+                var horaProgramada = reader.GetDateTime(0);
+                var estadoActual = reader.GetInt32(1);
+                reader.Close();
 
-            // Validación de horario (solo en modo estricto)
-            if (modoEstricto)
-            {
-                var ahora = DateTime.Now;
-                var apertura = horaProgramada.AddMinutes(-5);   // 5 min antes
-                var cierre = horaProgramada.AddMinutes(90);   // 90 min después
+                // Ya iniciado o finalizado — no modificar estado
+                if (estadoActual >= 1) return;
 
-                if (ahora < apertura)
+                // Validación de horario (según configuración global)
+                if (AppConfig.ModoEstrictoRondines)
+                {
+                    var ahora = DateTime.Now;
+                    var apertura = horaProgramada.AddMinutes(-AppConfig.VentanaInicioAntesMinutos);
+                    var cierre = horaProgramada.AddMinutes(AppConfig.VentanaInicioDespuesMinutos);
+
+                    if (ahora < apertura)
+                        throw new InvalidOperationException(
+                            $"El rondín aún no está disponible. " +
+                            $"Disponible desde las {apertura:HH:mm} hrs.");
+
+                    if (ahora > cierre)
+                        throw new InvalidOperationException(
+                            $"El rondín de las {horaProgramada:HH:mm} ya no puede iniciarse. " +
+                            $"El tiempo límite fue {cierre:HH:mm} hrs.");
+                }
+
+                // Verificar que no haya otro rondín en progreso en el mismo turno
+                const string checkProgreso = @"
+            SELECT COUNT(*)
+            FROM TBL_ROCLAND_SECURITY_RONDINES
+            WHERE TurnoID = (
+                SELECT TurnoID FROM TBL_ROCLAND_SECURITY_RONDINES WHERE ID = @rondinID
+            )
+              AND Estado = 1
+              AND ID != @rondinID";
+
+                using var cmdCheck = new SqlCommand(checkProgreso, conn);
+                cmdCheck.Parameters.AddWithValue("@rondinID", rondinID);
+
+                var enProgreso = (int)(await cmdCheck.ExecuteScalarAsync() ?? 0);
+                if (enProgreso > 0)
                     throw new InvalidOperationException(
-                        $"El rondín aún no está disponible. " +
-                        $"Disponible desde las {apertura:HH:mm} hrs.");
+                        "Ya hay un rondín en progreso. Finalízalo antes de iniciar otro.");
 
-                if (ahora > cierre)
-                    throw new InvalidOperationException(
-                        $"El rondín de las {horaProgramada:HH:mm} ya no puede iniciarse. " +
-                        $"El tiempo límite fue {cierre:HH:mm} hrs.");
-            }
+                // Marcar como iniciado
+                const string updateQuery = @"
+            UPDATE TBL_ROCLAND_SECURITY_RONDINES
+            SET Estado = 1,
+                HoraInicio = GETDATE(),
+                FechaModificacion = GETDATE()
+            WHERE ID = @rondinID
+              AND Estado = 0";
 
-            // Verificar que no haya otro rondín en progreso en el mismo turno
-            const string checkProgreso = @"
-                SELECT COUNT(*) FROM TBL_ROCLAND_SECURITY_RONDINES
-                WHERE TurnoID = (SELECT TurnoID FROM TBL_ROCLAND_SECURITY_RONDINES WHERE ID = @rondinID)
-                  AND Estado = 1
-                  AND ID != @rondinID";
-            using var cmdCheck = new SqlCommand(checkProgreso, conn);
-            cmdCheck.Parameters.AddWithValue("@rondinID", rondinID);
-            var enProgreso = (int)(await cmdCheck.ExecuteScalarAsync() ?? 0);
-            if (enProgreso > 0)
-                throw new InvalidOperationException(
-                    "Ya hay un rondín en progreso. Finalízalo antes de iniciar otro.");
-
-            // Marcar como iniciado
-            const string updateQuery = @"
-                UPDATE TBL_ROCLAND_SECURITY_RONDINES
-                SET Estado = 1, HoraInicio = GETDATE(), FechaModificacion = GETDATE()
-                WHERE ID = @rondinID AND Estado = 0";
             using var cmdUpdate = new SqlCommand(updateQuery, conn);
             cmdUpdate.Parameters.AddWithValue("@rondinID", rondinID);
             await cmdUpdate.ExecuteNonQueryAsync();
