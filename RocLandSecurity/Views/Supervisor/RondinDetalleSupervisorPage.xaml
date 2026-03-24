@@ -21,21 +21,30 @@
         <Grid Grid.Row="0"
               BackgroundColor="#1C1C1C"
               Padding="16,48,16,16"
-              ColumnDefinitions="Auto,*">
+              ColumnDefinitions="Auto,16,*">
 
-            <!-- Botón volver -->
-            <Button Grid.Column="0"
-                    x:Name="BtnVolver"
-                    Text="←"
-                    TextColor="White"
-                    FontSize="22"
-                    BackgroundColor="Transparent"
-                    WidthRequest="44"
-                    HeightRequest="44"
-                    Padding="0"
-                    Clicked="OnVolverClicked"/>
+            <!-- Volver -->
+            <Border Grid.Column="0"
+                BackgroundColor="#252525"
+                StrokeThickness="0"
+                WidthRequest="36" HeightRequest="36"
+                HorizontalOptions="Center"
+                VerticalOptions="Center">
+                        <Border.StrokeShape>
+                            <RoundRectangle CornerRadius="10"/>
+                        </Border.StrokeShape>
+                        <Image Source="back_arrow.png"
+                WidthRequest="24"
+                HeightRequest="24"
+                HorizontalOptions="Center"
+                VerticalOptions="Center">
+                            <Image.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnVolverClicked"/>
+                            </Image.GestureRecognizers>
+                        </Image>
+                    </Border>
 
-            <VerticalStackLayout Grid.Column="1" Spacing="2" VerticalOptions="Center">
+            <VerticalStackLayout Grid.Column="2" Spacing="2" VerticalOptions="Center">
                 <Label Text="Detalle de rondín"
                        TextColor="{StaticResource TextSecondary}"
                        FontSize="12"/>
@@ -85,8 +94,9 @@
                                     <Border.StrokeShape>
                                         <RoundRectangle CornerRadius="19"/>
                                     </Border.StrokeShape>
-                                    <Label Text="👤"
-                                           FontSize="18"
+                                    <Image Source="user.png"
+                                           WidthRequest="24"
+                                           HeightRequest="24"
                                            HorizontalOptions="Center"
                                            VerticalOptions="Center"/>
                                 </Border>
