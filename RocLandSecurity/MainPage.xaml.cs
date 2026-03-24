@@ -21,6 +21,62 @@ namespace RocLandSecurity
             OnTabCredencialesClicked(null, null);
         }
 
+        protected override void OnAppearing()
+        {
+            base.OnAppearing();
+
+            var notificationService = IPlatformApplication.Current?.Services.GetService<INotificationManagerService>();
+            if (notificationService != null)
+            {
+                notificationService.NotificationReceived += OnNotificationReceived;
+            }
+        }
+
+        protected override void OnDisappearing()
+        {
+            base.OnDisappearing();
+
+            var notificationService = IPlatformApplication.Current?.Services.GetService<INotificationManagerService>();
+            if (notificationService != null)
+            {
+                notificationService.NotificationReceived -= OnNotificationReceived;
+            }
+        }
+
+        private async void OnNotificationReceived(object? sender, NotificationEventArgs e)
+        {
+            await MainThread.InvokeOnMainThreadAsync(async () =>
+            {
+                if (e.Type == "inicio" && e.RondinId > 0)
+                {
+                    // Navegar al rondín si la app está abierta
+                    var shell = Shell.Current as AppShell;
+                    if (shell != null && shell.CurrentItem != null)
+                    {
+                        await shell.GoToAsync($"rondinactivo?rondinId={e.RondinId}");
+                    }
+                }
+                else if (e.Type == "fin" && e.RondinId > 0)
+                {
+                    // Mostrar alerta o actualizar UI
+                    await DisplayAlertAsync("Aviso", e.Message, "OK");
+
+                    // Recargar datos si es necesario
+                    var currentPage = Shell.Current.CurrentPage;
+                    if (currentPage is Views.Guardia.GuardiaHomePage homePage)
+                    {
+                        // Forzar recarga
+                        var method = homePage.GetType().GetMethod("CargarDatosAsync",
+                            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                        if (method != null)
+                        {
+                            await (method.Invoke(homePage, null) as Task ?? Task.CompletedTask);
+                        }
+                    }
+                }
+            });
+        }
+
         public void ResetearVista()
         {
             MainThread.BeginInvokeOnMainThread(() =>

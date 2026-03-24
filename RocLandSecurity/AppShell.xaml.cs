@@ -43,5 +43,24 @@ namespace RocLandSecurity
                 await Navigation.PushModalAsync(loginPage, animated: true);
             }
         }
+
+        public async Task ManejarNotificacion(string type, int rondinId)
+        {
+            if (type == "inicio" && rondinId > 0)
+            {
+                // Navegar al rondín activo
+                await Current.GoToAsync($"rondinactivo?rondinId={rondinId}");
+            }
+            else if (type == "fin" && rondinId > 0)
+            {
+                // Mostrar mensaje o navegar al rondín
+                var page = Current.CurrentPage;
+                if (page is Views.Guardia.GuardiaHomePage homePage)
+                {
+                    // Puedes mostrar un toast o navegar
+                    await homePage.DisplayAlert("Aviso", "El rondín está por finalizar", "OK");
+                }
+            }
+        }
     }
 }

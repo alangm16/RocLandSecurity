@@ -1,8 +1,10 @@
 using Android.App;
+using Android.Content;
 using Android.Content.PM;
 using Android.OS;
 using AndroidX.AppCompat.App;
 using RocLandSecurity.Services;
+using RocLandSecurity.Platforms.Android;
 
 namespace RocLandSecurity
 {
@@ -20,43 +22,48 @@ namespace RocLandSecurity
         {
             AppCompatDelegate.DefaultNightMode = AppCompatDelegate.ModeNightNo;
             base.OnCreate(savedInstanceState);
+
+            // Procesar notificación si la app se abrió desde una notificación
+            CreateNotificationFromIntent(Intent);
         }
 
-        /// <summary>
-        /// Intercepta el botón Back físico/gestual de Android.
-        ///
-        /// Caso 1 — Login visible (no autenticado):
-        ///   Bloquear. El modal del login no debe cerrarse con Back
-        ///   revelando el Shell debajo.
-        ///
-        /// Caso 2 — Página con stack de navegación (RondinActivo, etc.):
-        ///   MAUI lo maneja primero vía OnBackButtonPressed de la ContentPage.
-        ///   Si llega aquí, dejar que base lo resuelva.
-        ///
-        /// Caso 3 — Raíz de un TabBar (GuardiaHome, Historial, Perfil…):
-        ///   Minimizar la app. No navegar a tab anterior ni salir.
-        /// </summary>
-#pragma warning disable CA1422
+        protected override void OnNewIntent(Intent? intent)
+        {
+            base.OnNewIntent(intent);
+            CreateNotificationFromIntent(intent);
+        }
+
+        void CreateNotificationFromIntent(Intent? intent)
+        {
+            if (intent?.Extras != null)
+            {
+                string title = intent.GetStringExtra(NotificationManagerService.TitleKey) ?? string.Empty;
+                string message = intent.GetStringExtra(NotificationManagerService.MessageKey) ?? string.Empty;
+                string type = intent.GetStringExtra(NotificationManagerService.TypeKey) ?? string.Empty;
+                int rondinId = intent.GetIntExtra(NotificationManagerService.RondinIdKey, 0);
+
+                var service = IPlatformApplication.Current?.Services.GetService<INotificationManagerService>();
+                service?.ReceiveNotification(title, message, type, rondinId);
+            }
+        }
+
         public override void OnBackPressed()
         {
             var session = IPlatformApplication.Current?.Services
                 .GetService<SessionService>();
 
-            // Caso 1: no autenticado → bloquear
             if (session == null || !session.EstaAutenticado)
                 return;
 
             var shell = Microsoft.Maui.Controls.Shell.Current;
             if (shell != null)
             {
-                // Hay modal abierto (ej: login sobre el Shell) → dejar que base lo cierre
                 if (shell.Navigation?.ModalStack?.Count > 0)
                 {
                     base.OnBackPressed();
                     return;
                 }
 
-                // Hay páginas en el stack de navegación (rutas tipo rondinactivo)
                 if (shell.Navigation?.NavigationStack?.Count > 1)
                 {
                     base.OnBackPressed();
@@ -64,9 +71,7 @@ namespace RocLandSecurity
                 }
             }
 
-            // Caso 3: raíz de tab → minimizar
             MoveTaskToBack(true);
         }
-#pragma warning restore CA1422
     }
 }

@@ -5,6 +5,9 @@ using RocLandSecurity.Views.Supervisor;
 using RocLandSecurity.Views.Shared;
 using ZXing.Net.Maui.Controls;
 using ZXing.Net.Maui;
+#if ANDROID
+using RocLandSecurity.Platforms.Android;
+#endif
 
 #if ANDROID
 using Android.Widget;
@@ -80,6 +83,10 @@ namespace RocLandSecurity
                 }
                 catch { }
             });
+#endif
+            // ── Servicio de notificaciones ─────────────────────────────────
+#if ANDROID
+            builder.Services.AddSingleton<INotificationManagerService, NotificationManagerService>();
 #endif
 
 #if DEBUG

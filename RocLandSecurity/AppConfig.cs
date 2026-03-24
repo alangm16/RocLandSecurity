@@ -17,8 +17,7 @@ namespace RocLandSecurity
 
         /// <summary>Cadena de conexión construida a partir de los componentes.</summary>
         public const string ConnectionString =
-            
-
+            @"Server=192.168.1.94;Database=R2192017;User Id=sa;Password=R0cland;TrustServerCertificate=True;";
 
         // ─────────────────────────────────────────────────────────────────
         // Turnos

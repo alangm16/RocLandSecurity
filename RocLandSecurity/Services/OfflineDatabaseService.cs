@@ -18,14 +18,51 @@ namespace RocLandSecurity.Services
         private readonly LocalDatabase _local;
         private readonly ConnectivityService _connectivity;
         private readonly SyncService _sync;
+        private readonly INotificationManagerService? _notificationService;
 
         public OfflineDatabaseService(DatabaseService server, LocalDatabase local,
-            ConnectivityService connectivity, SyncService sync)
+            ConnectivityService connectivity, SyncService sync, INotificationManagerService? notificationService = null)
         {
             _server = server;
             _local = local;
             _connectivity = connectivity;
             _sync = sync;
+            _notificationService = notificationService;
+        }
+
+        // Añade este método para programar notificaciones
+        private async Task ProgramarNotificacionesRondinesAsync(List<Rondin> rondines)
+        {
+            if (_notificationService == null) return;
+
+            var ahora = DateTime.Now;
+
+            foreach (var rondin in rondines.Where(r => r.Estado == 0)) // Solo pendientes
+            {
+                // Notificación de inicio (5 minutos antes)
+                var horaInicioNotif = rondin.HoraProgramada.AddMinutes(-AppConfig.VentanaInicioAntesMinutos);
+                if (horaInicioNotif > ahora)
+                {
+                    _notificationService.SendNotification(
+                        "⏰ Rondín próximo a iniciar",
+                        $"El rondín de las {rondin.HoraProgramada:HH:mm} hrs comenzará en {AppConfig.VentanaInicioAntesMinutos} minutos.",
+                        horaInicioNotif,
+                        "inicio",
+                        rondin.ID);
+                }
+
+                // Notificación de finalización (5 minutos antes de la ventana de cierre)
+                var horaFinNotif = rondin.HoraProgramada.AddMinutes(AppConfig.VentanaInicioDespuesMinutos - 5);
+                if (horaFinNotif > ahora && horaFinNotif < rondin.HoraProgramada.AddMinutes(AppConfig.VentanaInicioDespuesMinutos))
+                {
+                    _notificationService.SendNotification(
+                        "⚠️ Rondín por finalizar",
+                        $"El rondín de las {rondin.HoraProgramada:HH:mm} hrs finaliza en 5 minutos. No olvides completarlo.",
+                        horaFinNotif,
+                        "fin",
+                        rondin.ID);
+                }
+            }
         }
 
         // ─────────────────────────────────────────────────────────────────
@@ -138,6 +175,9 @@ namespace RocLandSecurity.Services
             var rondines = await _server.GetRondinesPorTurnoAsync(turno.ID);
             foreach (var r in rondines)
                 await _local.UpsertRondinAsync(MapRondinLocal(r));
+
+            // Programar notificaciones para los rondines pendientes
+            await ProgramarNotificacionesRondinesAsync(rondines);
 
             return turno;
         }

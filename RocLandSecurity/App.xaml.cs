@@ -1,3 +1,6 @@
+#if ANDROID
+using RocLandSecurity.Platforms.Android;
+#endif
 using RocLandSecurity.Services;
 
 namespace RocLandSecurity
@@ -8,15 +11,17 @@ namespace RocLandSecurity
         private readonly LocalDatabase _localDb;
         private readonly SyncService _sync;
         private readonly ConnectivityService _connectivity;
+        private readonly INotificationManagerService? _notificationService;
 
         public App(MainPage loginPage, LocalDatabase localDb,
-            SyncService sync, ConnectivityService connectivity)
+            SyncService sync, ConnectivityService connectivity, INotificationManagerService? notificationService = null)
         {
             InitializeComponent();
             _loginPage = loginPage;
             _localDb = localDb;
             _sync = sync;
             _connectivity = connectivity;
+            _notificationService = notificationService;
         }
 
         protected override Window CreateWindow(IActivationState? activationState)
@@ -26,6 +31,9 @@ namespace RocLandSecurity
 
             shell.Loaded += async (s, e) =>
             {
+                // Solicitar permiso de notificaciones
+                await SolicitarPermisoNotificacionesAsync();
+
                 // 1. Inicializar SQLite (una sola vez)
                 await _localDb.InitAsync();
 
@@ -43,6 +51,27 @@ namespace RocLandSecurity
             };
 
             return window;
+        }
+
+        private async Task SolicitarPermisoNotificacionesAsync()
+        {
+            try
+            {
+                if (_notificationService != null)
+                {
+#if ANDROID
+                    var status = await Permissions.RequestAsync<NotificationPermission>();
+                    if (status != PermissionStatus.Granted)
+                    {
+                        System.Diagnostics.Debug.WriteLine("Permiso de notificaciones no concedido");
+                    }
+#endif
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error al solicitar permiso de notificaciones: {ex.Message}");
+            }
         }
     }
 }
