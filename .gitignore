@@ -365,3 +365,4 @@ FodyWeavers.xsd
 # Conexion
 Secrets/
 AppConfig.cs
+SQL_Rocland_App.sql
