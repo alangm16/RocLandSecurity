@@ -1,0 +1,260 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="RocLandSecurity.Views.Supervisor.RondinDetalleSupervisorPage"
+             BackgroundColor="#111111"
+             Title="Detalle de rondín">
+
+    <ContentPage.Resources>
+        <ResourceDictionary>
+            <Color x:Key="AccentGreen">#6DBF2E</Color>
+            <Color x:Key="CardBg">#1C1C1C</Color>
+            <Color x:Key="TextPrimary">#FFFFFF</Color>
+            <Color x:Key="TextSecondary">#888888</Color>
+            <Color x:Key="BorderColor">#2E2E2E</Color>
+        </ResourceDictionary>
+    </ContentPage.Resources>
+
+    <Grid RowDefinitions="Auto,*">
+
+        <!-- ══ HEADER ══════════════════════════════════════════ -->
+        <Grid Grid.Row="0"
+              BackgroundColor="#1C1C1C"
+              Padding="16,48,16,16"
+              ColumnDefinitions="Auto,16,*">
+
+            <!-- Volver -->
+            <Border Grid.Column="0"
+                BackgroundColor="#252525"
+                StrokeThickness="0"
+                WidthRequest="36" HeightRequest="36"
+                HorizontalOptions="Center"
+                VerticalOptions="Center">
+                        <Border.StrokeShape>
+                            <RoundRectangle CornerRadius="10"/>
+                        </Border.StrokeShape>
+                        <Image Source="back_arrow.png"
+                WidthRequest="24"
+                HeightRequest="24"
+                HorizontalOptions="Center"
+                VerticalOptions="Center">
+                            <Image.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnVolverClicked"/>
+                            </Image.GestureRecognizers>
+                        </Image>
+                    </Border>
+
+            <VerticalStackLayout Grid.Column="2" Spacing="2" VerticalOptions="Center">
+                <Label Text="Detalle de rondín"
+                       TextColor="{StaticResource TextSecondary}"
+                       FontSize="12"/>
+                <Label x:Name="LblTitulo"
+                       Text="--"
+                       TextColor="{StaticResource TextPrimary}"
+                       FontSize="17"
+                       FontAttributes="Bold"/>
+            </VerticalStackLayout>
+        </Grid>
+
+        <!-- ══ CONTENIDO ════════════════════════════════════════ -->
+        <ScrollView Grid.Row="1">
+            <VerticalStackLayout Padding="16,16" Spacing="12">
+
+                <!-- Indicador de carga -->
+                <ActivityIndicator x:Name="LoadingIndicator"
+                                   IsRunning="True"
+                                   IsVisible="True"
+                                   Color="{StaticResource AccentGreen}"
+                                   HeightRequest="48"
+                                   Margin="0,32,0,0"/>
+
+                <!-- Panel principal (se muestra tras carga) -->
+                <VerticalStackLayout x:Name="PanelContenido"
+                                     IsVisible="False"
+                                     Spacing="12">
+
+                    <!-- ── TARJETA RESUMEN DEL RONDÍN ──────── -->
+                    <Border BackgroundColor="#1C1C1C"
+                            StrokeThickness="1"
+                            Stroke="#2E2E2E"
+                            Padding="16,14">
+                        <Border.StrokeShape>
+                            <RoundRectangle CornerRadius="14"/>
+                        </Border.StrokeShape>
+                        <Grid RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="10">
+
+                            <!-- Guardia -->
+                            <Grid Grid.Row="0" ColumnDefinitions="Auto,*">
+                                <!-- Icono guardia -->
+                                <Border Grid.Column="0"
+                                        BackgroundColor="#252525"
+                                        StrokeThickness="0"
+                                        WidthRequest="38" HeightRequest="38"
+                                        Margin="0,0,10,0">
+                                    <Border.StrokeShape>
+                                        <RoundRectangle CornerRadius="19"/>
+                                    </Border.StrokeShape>
+                                    <Image Source="user.png"
+                                           WidthRequest="24"
+                                           HeightRequest="24"
+                                           HorizontalOptions="Center"
+                                           VerticalOptions="Center"/>
+                                </Border>
+                                <VerticalStackLayout Grid.Column="1" Spacing="1" VerticalOptions="Center">
+                                    <Label Text="Guardia en turno"
+                                           TextColor="{StaticResource TextSecondary}"
+                                           FontSize="11"/>
+                                    <Label x:Name="LblNombreGuardia"
+                                           Text="--"
+                                           TextColor="{StaticResource TextPrimary}"
+                                           FontSize="15"
+                                           FontAttributes="Bold"/>
+                                </VerticalStackLayout>
+                            </Grid>
+
+                            <!-- Separador -->
+                            <BoxView Grid.Row="1"
+                                     HeightRequest="1"
+                                     Color="#2E2E2E"/>
+
+                            <!-- Horarios en fila -->
+                            <Grid Grid.Row="2"
+                                  ColumnDefinitions="*,*,*"
+                                  ColumnSpacing="8">
+
+                                <!-- Programado -->
+                                <VerticalStackLayout Grid.Column="0" Spacing="2">
+                                    <Label Text="PROGRAMADO"
+                                           TextColor="{StaticResource TextSecondary}"
+                                           FontSize="9"
+                                           CharacterSpacing="0.8"/>
+                                    <Label x:Name="LblHoraProgramada"
+                                           Text="--:--"
+                                           TextColor="{StaticResource TextPrimary}"
+                                           FontSize="18"
+                                           FontAttributes="Bold"/>
+                                </VerticalStackLayout>
+
+                                <!-- Inicio real -->
+                                <VerticalStackLayout Grid.Column="1" Spacing="2">
+                                    <Label Text="INICIO REAL"
+                                           TextColor="{StaticResource TextSecondary}"
+                                           FontSize="9"
+                                           CharacterSpacing="0.8"/>
+                                    <Label x:Name="LblHoraInicio"
+                                           Text="--:--"
+                                           TextColor="#FAC775"
+                                           FontSize="18"
+                                           FontAttributes="Bold"/>
+                                </VerticalStackLayout>
+
+                                <!-- Fin / Duración -->
+                                <VerticalStackLayout Grid.Column="2" Spacing="2">
+                                    <Label Text="DURACIÓN"
+                                           TextColor="{StaticResource TextSecondary}"
+                                           FontSize="9"
+                                           CharacterSpacing="0.8"/>
+                                    <Label x:Name="LblDuracion"
+                                           Text="--"
+                                           TextColor="#97C459"
+                                           FontSize="18"
+                                           FontAttributes="Bold"/>
+                                </VerticalStackLayout>
+                            </Grid>
+
+                            <!-- Estado + contadores -->
+                            <Grid Grid.Row="3"
+                                  ColumnDefinitions="Auto,*,Auto"
+                                  ColumnSpacing="8">
+
+                                <!-- Badge estado -->
+                                <Border Grid.Column="0"
+                                        x:Name="BadgeEstado"
+                                        BackgroundColor="#252525"
+                                        StrokeThickness="1"
+                                        Stroke="#888888"
+                                        Padding="10,4">
+                                    <Border.StrokeShape>
+                                        <RoundRectangle CornerRadius="10"/>
+                                    </Border.StrokeShape>
+                                    <Label x:Name="LblEstado"
+                                           Text="--"
+                                           TextColor="#888888"
+                                           FontSize="11"
+                                           FontAttributes="Bold"/>
+                                </Border>
+
+                                <!-- Puntos visitados / total -->
+                                <Label Grid.Column="1"
+                                       x:Name="LblPuntosResumen"
+                                       Text="-- / -- puntos"
+                                       TextColor="{StaticResource TextSecondary}"
+                                       FontSize="13"
+                                       VerticalOptions="Center"
+                                       Margin="4,0,0,0"/>
+
+                                <!-- Incidencias -->
+                                <Border Grid.Column="2"
+                                        x:Name="BadgeIncidencias"
+                                        IsVisible="False"
+                                        BackgroundColor="#2a0a0a"
+                                        StrokeThickness="1"
+                                        Stroke="#A32D2D"
+                                        Padding="10,4">
+                                    <Border.StrokeShape>
+                                        <RoundRectangle CornerRadius="10"/>
+                                    </Border.StrokeShape>
+                                    <Label x:Name="LblIncidencias"
+                                           Text="⚠ 0"
+                                           TextColor="#F09595"
+                                           FontSize="11"
+                                           FontAttributes="Bold"/>
+                                </Border>
+                            </Grid>
+                        </Grid>
+                    </Border>
+
+                    <!-- ── ENCABEZADO DE LA LISTA DE PUNTOS ─── -->
+                    <Grid ColumnDefinitions="*,Auto" Margin="4,4,4,0">
+                        <Label Grid.Column="0"
+                               Text="Puntos de control"
+                               TextColor="{StaticResource TextPrimary}"
+                               FontSize="14"
+                               FontAttributes="Bold"
+                               VerticalOptions="Center"/>
+                        <Label Grid.Column="1"
+                               x:Name="LblLeyenda"
+                               Text="✓ Visitado  ✗ Omitido  ○ Pendiente"
+                               TextColor="{StaticResource TextSecondary}"
+                               FontSize="10"
+                               VerticalOptions="Center"/>
+                    </Grid>
+
+                    <!-- Lista de puntos (se rellena desde code-behind) -->
+                    <VerticalStackLayout x:Name="ListaPuntos" Spacing="6"/>
+
+                </VerticalStackLayout>
+
+            </VerticalStackLayout>
+        </ScrollView>
+
+        <!-- Toast -->
+        <Frame x:Name="ToastFrame"
+               Grid.Row="0" Grid.RowSpan="2"
+               BackgroundColor="#FF5555"
+               CornerRadius="12" Padding="12,8"
+               IsVisible="False"
+               HorizontalOptions="Center"
+               VerticalOptions="Start"
+               Margin="24,64,24,0"
+               HasShadow="True" Opacity="0"
+               ZIndex="100">
+            <Label x:Name="ToastLabel"
+                   TextColor="White"
+                   FontAttributes="Bold"
+                   FontSize="13"
+                   HorizontalOptions="Center"/>
+        </Frame>
+
+    </Grid>
+</ContentPage>
