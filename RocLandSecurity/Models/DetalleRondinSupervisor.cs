@@ -17,6 +17,7 @@ namespace RocLandSecurity.Models
         public int PuntosTotal { get; set; }
         public int TotalIncidencias { get; set; }
         public List<PuntoDetalleItem> Puntos { get; set; } = new();
+        public List<IncidenciaResumen> Incidencias { get; set; } = new();
 
         // Helpers de presentación
         public string DuracionStr

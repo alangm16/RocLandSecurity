@@ -24,6 +24,54 @@ namespace RocLandSecurity.Views.Supervisor
         // ─────────────────────────────────────────────────────────────────
         // CARGA
         // ─────────────────────────────────────────────────────────────────
+        private View CrearFilaIncidencia(IncidenciaResumen inc)
+        {
+            var card = new Border
+            {
+                BackgroundColor = Color.FromArgb("#2A1A1A"),
+                StrokeThickness = 1,
+                Stroke = Color.FromArgb("#A32D2D"),
+                Padding = new Thickness(12, 10),
+            };
+            card.StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle
+            { CornerRadius = new CornerRadius(10) };
+
+            var stack = new VerticalStackLayout { Spacing = 4 };
+
+            stack.Children.Add(new Label
+            {
+                Text = inc.Descripcion,
+                TextColor = Color.FromArgb("#F09595"),
+                FontSize = 13,
+                LineBreakMode = LineBreakMode.WordWrap
+            });
+
+            var estadoColor = inc.Estado == 0
+                ? Color.FromArgb("#F09595")
+                : Color.FromArgb("#97C459");
+
+            var estadoText = inc.Estado == 0 ? "⚠ Abierta" : "✓ Resuelta";
+
+            stack.Children.Add(new Label
+            {
+                Text = $"{inc.FechaReporte:HH:mm:ss} · {estadoText}",
+                TextColor = estadoColor,
+                FontSize = 11
+            });
+
+            if (!string.IsNullOrEmpty(inc.NotaResolucion))
+            {
+                stack.Children.Add(new Label
+                {
+                    Text = $"Resolución: {inc.NotaResolucion}",
+                    TextColor = Color.FromArgb("#97C459"),
+                    FontSize = 11
+                });
+            }
+
+            card.Content = stack;
+            return card;
+        }
 
         private async Task CargarDetalleAsync()
         {
@@ -81,6 +129,25 @@ namespace RocLandSecurity.Views.Supervisor
                 ListaPuntos.Children.Clear();
                 foreach (var punto in detalle.Puntos)
                     ListaPuntos.Children.Add(CrearFilaPunto(punto));
+
+                // ── Sección de incidencias (después de la lista de puntos) ──
+                if (detalle.Incidencias.Any())
+                {
+                    var incidenciasHeader = new Label
+                    {
+                        Text = "Incidencias reportadas",
+                        TextColor = Color.FromArgb("#F09595"),
+                        FontSize = 14,
+                        FontAttributes = FontAttributes.Bold,
+                        Margin = new Thickness(0, 12, 0, 8)
+                    };
+                    ListaPuntos.Children.Add(incidenciasHeader);
+
+                    foreach (var inc in detalle.Incidencias)
+                    {
+                        ListaPuntos.Children.Add(CrearFilaIncidencia(inc));
+                    }
+                }
 
                 PanelContenido.IsVisible = true;
             }

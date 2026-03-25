@@ -117,11 +117,13 @@ namespace RocLandSecurity.Views.Supervisor
             var estadoColor = Color.FromArgb(rondin.EstadoColor);
             var estadoColorFondo = Color.FromArgb(rondin.EstadoColorFondo);
 
+            bool tieneIncidencias = rondin.TieneIncidencias;
+
             var card = new Border
             {
                 BackgroundColor = Color.FromArgb("#1C1C1C"),
                 StrokeThickness = 1,
-                Stroke = Color.FromArgb("#2E2E2E"),
+                Stroke = tieneIncidencias ? Color.FromArgb("#A32D2D") : Color.FromArgb("#2E2E2E"),
                 Padding = new Thickness(0),
             };
             card.StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle
@@ -152,7 +154,8 @@ namespace RocLandSecurity.Views.Supervisor
             };
 
             // Barra lateral
-            var barra = new BoxView { Color = estadoColor, VerticalOptions = LayoutOptions.Fill };
+            var barraColor = tieneIncidencias ? Color.FromArgb("#A32D2D") : estadoColor;
+            var barra = new BoxView { Color = barraColor, VerticalOptions = LayoutOptions.Fill };
             Grid.SetColumn(barra, 0);
 
             // Contenido
@@ -164,6 +167,7 @@ namespace RocLandSecurity.Views.Supervisor
             new RowDefinition { Height = GridLength.Auto },
             new RowDefinition { Height = GridLength.Auto },
             new RowDefinition { Height = GridLength.Auto },
+            new RowDefinition { Height = GridLength.Auto }, // Para incidencias
         },
                 ColumnDefinitions = new ColumnDefinitionCollection
         {
@@ -235,21 +239,43 @@ namespace RocLandSecurity.Views.Supervisor
             contenido.Children.Add(lblInfo);
             contenido.Children.Add(progress);
 
-            // Incidencia
-            if (rondin.Estado == 4 || (rondin.Estado == 2 && rondin.PuntosVisitados < rondin.PuntosTotal))
+            // ── INCIDENCIAS  ──
+            if (tieneIncidencias)
             {
-                var lblIncidencia = new Label
+                // Badge de incidencias
+                var incidenciaRow = new Grid
                 {
-                    Text = "⚠ Hay incidencias reportadas en este rondín",
-                    TextColor = Color.FromArgb("#FAC775"),
-                    FontSize = 11,
-                    Margin = new Thickness(0, 6, 0, 0),
+                    ColumnDefinitions = new ColumnDefinitionCollection
+            {
+                new ColumnDefinition { Width = GridLength.Auto },
+                new ColumnDefinition { Width = GridLength.Star },
+            },
+                    ColumnSpacing = 6,
+                    Margin = new Thickness(0, 8, 0, 0),
                 };
-                contenido.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-                Grid.SetRow(lblIncidencia, 3);
-                Grid.SetColumn(lblIncidencia, 0);
-                Grid.SetColumnSpan(lblIncidencia, 2);
-                contenido.Children.Add(lblIncidencia);
+
+                incidenciaRow.Children.Add(new Image
+                {
+                    Source = "warning.png",
+                    WidthRequest = 12,
+                    HeightRequest = 12,
+                    VerticalOptions = LayoutOptions.Center,
+                });
+                Grid.SetColumn(incidenciaRow.Children.Last() as View, 0);
+
+                incidenciaRow.Children.Add(new Label
+                {
+                    Text = "Hay incidencias reportadas en este rondín",
+                    TextColor = Color.FromArgb("#F09595"),
+                    FontSize = 11,
+                    FontAttributes = FontAttributes.Bold,
+                    VerticalOptions = LayoutOptions.Center,
+                });
+                Grid.SetColumn(incidenciaRow.Children.Last() as View, 1);
+
+                Grid.SetRow(incidenciaRow, 3);
+                Grid.SetColumnSpan(incidenciaRow, 2);
+                contenido.Children.Add(incidenciaRow);
             }
 
             // Indicador de que es tappable (flecha discreta)
@@ -261,8 +287,7 @@ namespace RocLandSecurity.Views.Supervisor
                 VerticalOptions = LayoutOptions.Center,
                 Margin = new Thickness(0, 0, 4, 0),
             };
-            // Añadir la flecha al final de la primera fila, columna 1 (reemplaza el badge)
-            // En realidad lo ponemos en el innerGrid como overlay a la derecha
+
             var wrapperGrid = new Grid
             {
                 ColumnDefinitions = new ColumnDefinitionCollection
@@ -271,7 +296,7 @@ namespace RocLandSecurity.Views.Supervisor
             new ColumnDefinition { Width = new GridLength(20) },
         }
             };
-            Grid.SetColumn(contenido, 0); // mover contenido a col 0 del wrapper
+            Grid.SetColumn(contenido, 0);
             wrapperGrid.Children.Add(contenido);
             Grid.SetColumn(lblChevron, 1);
             wrapperGrid.Children.Add(lblChevron);

@@ -71,5 +71,8 @@ namespace RocLandSecurity.Models
         public bool EstaFinalizado => Estado >= 2;
 
         public bool PendienteDeSincronizar => !Sincronizado;
+        public int IncidenciasCount { get; set; } = 0;
+
+        public bool TieneIncidencias => IncidenciasCount > 0 || Estado == 4;
     }
 }
