@@ -39,8 +39,6 @@ namespace RocLandSecurity
                 });
 
             // ── Cadena de conexión ───────────────────────────────────────────
-            // Para emulador: 10.0.2.2 apunta a localhost de la máquina host
-            // Para dispositivo físico: usa la IP local de tu PC en la red WiFi
             const string connectionString = AppConfig.ConnectionString;
 
             // ── Servicios (Singleton = una sola instancia en toda la app) ───
@@ -68,6 +66,7 @@ namespace RocLandSecurity
             builder.Services.AddTransient<HistorialGuardiaPage>();
             builder.Services.AddTransient<SupervisorIncidenciasPage>();
             builder.Services.AddTransient<SupervisorHistorialPage>();
+            builder.Services.AddTransient<admGuardias>();
 
 #if ANDROID
             ImageHandler.Mapper.AppendToMapping("NoTint_Android", (handler, view) =>

@@ -13,6 +13,7 @@ namespace RocLandSecurity
             Routing.RegisterRoute("rondinactivo", typeof(RondinActivoPage));
             Routing.RegisterRoute("reportarincidencia", typeof(ReportarIncidenciaPage));
             Routing.RegisterRoute("supervisorincidencias", typeof(SupervisorIncidenciasPage));
+            Routing.RegisterRoute("admGuardias", typeof(admGuardias));
         }
 
         public async Task MostrarTabBarGuardiaAsync()
@@ -58,7 +59,7 @@ namespace RocLandSecurity
                 if (page is Views.Guardia.GuardiaHomePage homePage)
                 {
                     // Puedes mostrar un toast o navegar
-                    await homePage.DisplayAlert("Aviso", "El rondín está por finalizar", "OK");
+                    await homePage.DisplayAlertAsync("Aviso", "El rondín está por finalizar", "OK");
                 }
             }
         }

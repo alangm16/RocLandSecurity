@@ -89,6 +89,14 @@
                 Shell.NavBarIsVisible="False"/>
         </Tab>
 
+        <Tab Title="Guardias" Icon="group.png" Route="guardias">
+            <ShellContent
+                Title="Guardias"
+                Route="admGuardias"
+                ContentTemplate="{DataTemplate supervisor:admGuardias}"
+                Shell.NavBarIsVisible="False"/>
+        </Tab>
+
         <Tab Title="Perfil" Icon="tab_perfil.png" Route="perfil">
             <ShellContent
                 Title="Perfil"

@@ -98,6 +98,9 @@
 	  <MauiXaml Update="Views\Shared\PerfilPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
+	  <MauiXaml Update="Views\Supervisor\admGuardias.xaml">
+	    <Generator>MSBuild:Compile</Generator>
+	  </MauiXaml>
 	  <MauiXaml Update="Views\Supervisor\RondinDetalleSupervisorPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>

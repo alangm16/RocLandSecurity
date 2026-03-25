@@ -1181,7 +1181,7 @@ namespace RocLandSecurity.Services
             Estado = r.GetInt32(6),
             PuntosVisitados = r.GetInt32(7),
             PuntosTotal = r.GetInt32(8),
-            IncidenciasCount = r.GetInt32(9)  // Nueva propiedad
+            IncidenciasCount = r.GetInt32(9) 
         };
 
         public async Task<Turno?> GetTurnoActivoAsync()
