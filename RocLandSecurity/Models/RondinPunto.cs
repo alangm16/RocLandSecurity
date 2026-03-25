@@ -14,7 +14,7 @@ namespace RocLandSecurity.Models
         public int Estado { get; set; }
         public double? LatitudG { get; set; }
         public double? LongitudG { get; set; }
-        public string? FotoPath { get; set; }
+        public byte[]? FotoPath { get; set; }
         public bool Sincronizado { get; set; }
         public DateTime FechaModificacion { get; set; }
         public string NombrePunto { get; set; } = string.Empty;
