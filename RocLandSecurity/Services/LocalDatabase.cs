@@ -57,6 +57,12 @@ namespace RocLandSecurity.Services
         private SQLiteAsyncConnection Db => _db
             ?? throw new InvalidOperationException("LocalDatabase no inicializada. Llama InitAsync primero.");
 
+        public Task<RondinPuntoLocal?> GetRondinPuntoPorLocalIDAsync(int localID) =>
+            Db.Table<RondinPuntoLocal>().Where(rp => rp.LocalID == localID).FirstOrDefaultAsync();
+
+        public Task<RondinPuntoLocal?> GetRondinPuntoPorServerIDAsync(int serverID) =>
+            Db.Table<RondinPuntoLocal>().Where(rp => rp.ServerID == serverID).FirstOrDefaultAsync();
+
         // ─────────────────────────────────────────────────────────────────
         // USUARIOS — Login offline
         // ─────────────────────────────────────────────────────────────────

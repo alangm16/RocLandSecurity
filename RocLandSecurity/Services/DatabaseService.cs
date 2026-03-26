@@ -317,6 +317,21 @@ namespace RocLandSecurity.Services
             return await cmd.ExecuteNonQueryAsync() > 0;
         }
 
+        public async Task ActualizarFotoPuntoAsync(int rondinPuntoServerID, byte[] fotoBytes)
+        {
+            using var conn = new SqlConnection(connectionString);
+            await conn.OpenAsync();
+            const string query = @"
+        UPDATE TBL_ROCLAND_SECURITY_RONDINESPUNTOS
+        SET FotoPath = @foto,
+            FechaModificacion = GETDATE()
+        WHERE ID = @id";
+            using var cmd = new SqlCommand(query, conn);
+            cmd.Parameters.AddWithValue("@id", rondinPuntoServerID);
+            cmd.Parameters.AddWithValue("@foto", fotoBytes ?? (object)DBNull.Value);
+            await cmd.ExecuteNonQueryAsync();
+        }
+
         public async Task FinalizarRondinAsync(int rondinID)
         {
             using var conn = new SqlConnection(connectionString);

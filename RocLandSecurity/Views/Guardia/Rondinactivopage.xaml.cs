@@ -523,19 +523,12 @@ namespace RocLandSecurity.Views.Guardia
                     }
                     catch { }
 
+                    // Registrar la visita primero
                     await _offline.RegistrarVisitaPuntoAsync(puntoEscaneado.ID, lat, lon, _rondinId, codigoLeido);
 
-                    // Validar si es punto 1, 11 o 19
+                    // Obtener el punto local (para obtener LocalID) y actualizar UI
                     int orden = puntoEscaneado.OrdenPunto;
-                    if (orden == 1 || orden == 11 || orden == 19)
-                    {
-                        // Pequeña pausa para que el usuario vea el check verde antes de saltar a la foto
-                        await Task.Delay(500);
-
-                        // Navegar a la página de foto
-                        // Asegúrate de registrar esta ruta en AppShell.xaml.cs
-                        await Shell.Current.GoToAsync("fotoevidencia");
-                    }
+                    var puntoLocal = await _offline.GetRondinPuntoLocalPorServerIDAsync(puntoEscaneado.ID);
 
                     var local = _puntos.First(p => p.ID == puntoEscaneado.ID);
                     local.Estado = 1;
@@ -557,6 +550,12 @@ namespace RocLandSecurity.Views.Guardia
                         int idx = _puntos.IndexOf(_puntoActual);
                         if (idx >= 0)
                             await ScrollPuntos.ScrollToAsync(0, Math.Max(0, idx * 64 - 80), false);
+                    }
+
+                    // Si requiere foto, navegar después de actualizar UI
+                    if (puntoLocal != null && (orden == 1 || orden == 11 || orden == 19))
+                    {
+                        await Shell.Current.GoToAsync($"fotoevidencia?localId={puntoLocal.LocalID}");
                     }
                 }
                 catch (Exception ex)

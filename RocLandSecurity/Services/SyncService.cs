@@ -181,8 +181,7 @@ namespace RocLandSecurity.Services
 
         private async Task<int> SubirVisitasPuntosAsync(SqlConnection conn)
         {
-            // GetPuntosPendientesSyncAsync ya filtra solo Estado > 0 (modificados)
-            var pendientes = await _local.GetPuntosPendientesSyncAsync();
+            var pendientes = await _local.GetPuntosPendientesSyncAsync(); // Ya filtra por Estado>0 y !Sincronizado
             int count = 0;
 
             foreach (var rp in pendientes)
@@ -191,31 +190,31 @@ namespace RocLandSecurity.Services
                 {
                     if (rp.ServerID > 0)
                     {
-                        // Existe en servidor — UPDATE
                         const string upd = @"
-                            UPDATE TBL_ROCLAND_SECURITY_RONDINESPUNTOS
-                            SET Estado = @estado, HoraVisita = @hora,
-                                LatitudG = @lat, LongitudG = @lon,
-                                Sincronizado = 1, FechaModificacion = @fechaMod
-                            WHERE ID = @id";
+                    UPDATE TBL_ROCLAND_SECURITY_RONDINESPUNTOS
+                    SET Estado = @estado, HoraVisita = @hora,
+                        LatitudG = @lat, LongitudG = @lon,
+                        FotoPath = @foto,
+                        Sincronizado = 1, FechaModificacion = @fechaMod
+                    WHERE ID = @id";
                         using var cmd = new SqlCommand(upd, conn);
                         cmd.Parameters.AddWithValue("@id", rp.ServerID);
                         cmd.Parameters.AddWithValue("@estado", rp.Estado);
                         cmd.Parameters.AddWithValue("@hora", (object?)rp.HoraVisita ?? DBNull.Value);
                         cmd.Parameters.AddWithValue("@lat", (object?)rp.LatitudG ?? DBNull.Value);
                         cmd.Parameters.AddWithValue("@lon", (object?)rp.LongitudG ?? DBNull.Value);
+                        cmd.Parameters.AddWithValue("@foto", (object?)rp.FotoPath ?? DBNull.Value);
                         cmd.Parameters.AddWithValue("@fechaMod", rp.FechaModificacion);
                         await cmd.ExecuteNonQueryAsync();
                     }
                     else
                     {
-                        // No existe en servidor — INSERT y guardar ServerID
                         const string ins = @"
-                            INSERT INTO TBL_ROCLAND_SECURITY_RONDINESPUNTOS
-                                (RondinID, PuntoID, HoraVisita, Estado, LatitudG, LongitudG,
-                                 Sincronizado, FechaModificacion)
-                            OUTPUT INSERTED.ID
-                            VALUES (@rondinID, @puntoID, @hora, @estado, @lat, @lon, 1, @fechaMod)";
+                    INSERT INTO TBL_ROCLAND_SECURITY_RONDINESPUNTOS
+                        (RondinID, PuntoID, HoraVisita, Estado, LatitudG, LongitudG, FotoPath,
+                         Sincronizado, FechaModificacion)
+                    OUTPUT INSERTED.ID
+                    VALUES (@rondinID, @puntoID, @hora, @estado, @lat, @lon, @foto, 1, @fechaMod)";
                         using var cmd = new SqlCommand(ins, conn);
                         cmd.Parameters.AddWithValue("@rondinID", rp.RondinID);
                         cmd.Parameters.AddWithValue("@puntoID", rp.PuntoID);
@@ -223,6 +222,7 @@ namespace RocLandSecurity.Services
                         cmd.Parameters.AddWithValue("@estado", rp.Estado);
                         cmd.Parameters.AddWithValue("@lat", (object?)rp.LatitudG ?? DBNull.Value);
                         cmd.Parameters.AddWithValue("@lon", (object?)rp.LongitudG ?? DBNull.Value);
+                        cmd.Parameters.AddWithValue("@foto", (object?)rp.FotoPath ?? DBNull.Value);
                         cmd.Parameters.AddWithValue("@fechaMod", rp.FechaModificacion);
                         var serverID = (int)(await cmd.ExecuteScalarAsync() ?? 0);
                         rp.ServerID = serverID;

@@ -444,6 +444,37 @@ namespace RocLandSecurity.Services
             return false;
         }
 
+        /// <summary>
+        /// Obtiene el punto de rondín local a partir del ServerID.
+        /// </summary>
+        public async Task<RondinPuntoLocal?> GetRondinPuntoLocalPorServerIDAsync(int serverID)
+        {
+            return await _local.GetRondinPuntoPorServerIDAsync(serverID);
+        }
+
+        public async Task GuardarFotoPuntoAsync(int localID, byte[] fotoBytes)
+        {
+            var puntoLocal = await _local.GetRondinPuntoPorLocalIDAsync(localID);
+            if (puntoLocal == null) throw new InvalidOperationException("Punto no encontrado.");
+
+            puntoLocal.FotoPath = fotoBytes;
+            puntoLocal.Sincronizado = false; // Marcar para sincronizar
+            puntoLocal.FechaModificacion = DateTime.Now;
+            await _local.UpsertRondinPuntoAsync(puntoLocal);
+
+            // Intentar subir al servidor si hay conexión
+            if (await _connectivity.CheckServerAsync())
+            {
+                try
+                {
+                    await _server.ActualizarFotoPuntoAsync(puntoLocal.ServerID, fotoBytes);
+                    puntoLocal.Sincronizado = true;
+                    await _local.UpsertRondinPuntoAsync(puntoLocal);
+                }
+                catch { /* Error no crítico, se sincronizará después */ }
+            }
+        }
+
         /// <summary>Finalizar rondín: local + servidor + sync crítico.</summary>
         public async Task FinalizarRondinAsync(int rondinID)
         {
@@ -700,6 +731,7 @@ namespace RocLandSecurity.Services
             Estado = rp.Estado,
             LatitudG = rp.LatitudG,
             LongitudG = rp.LongitudG,
+            FotoPath = rp.FotoPath,
             Sincronizado = rp.Sincronizado,
         };
     }
