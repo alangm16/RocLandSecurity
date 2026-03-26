@@ -25,9 +25,7 @@ namespace RocLandSecurity.Views.Supervisor
             await CargarDetalleAsync();
         }
 
-        // ─────────────────────────────────────────────────────────────────
         // CARGA
-        // ─────────────────────────────────────────────────────────────────
         private View CrearFilaIncidencia(IncidenciaResumen inc)
         {
             var card = new Border
@@ -37,11 +35,11 @@ namespace RocLandSecurity.Views.Supervisor
                 Stroke = Color.FromArgb("#A32D2D"),
                 Padding = new Thickness(12, 10),
             };
-            card.StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle
-            { CornerRadius = new CornerRadius(10) };
+            card.StrokeShape = new RoundRectangle { CornerRadius = new CornerRadius(10) };
 
-            var stack = new VerticalStackLayout { Spacing = 4 };
+            var stack = new VerticalStackLayout { Spacing = 6 };
 
+            // Descripción
             stack.Children.Add(new Label
             {
                 Text = inc.Descripcion,
@@ -50,10 +48,44 @@ namespace RocLandSecurity.Views.Supervisor
                 LineBreakMode = LineBreakMode.WordWrap
             });
 
-            var estadoColor = inc.Estado == 0
-                ? Color.FromArgb("#F09595")
-                : Color.FromArgb("#97C459");
+            // Ubicación (punto) si existe
+            if (!string.IsNullOrEmpty(inc.NombrePunto))
+            {
+                var ubicacionGrid = new Grid
+                {
+                    ColumnDefinitions = new ColumnDefinitionCollection
+            {
+                new ColumnDefinition { Width = GridLength.Auto },
+                new ColumnDefinition { Width = GridLength.Star }
+            },
+                    ColumnSpacing = 6
+                };
 
+                var locationIcon = new Image
+                {
+                    Source = "location.png",
+                    WidthRequest = 12,
+                    HeightRequest = 12,
+                    VerticalOptions = LayoutOptions.Center
+                };
+                Grid.SetColumn(locationIcon, 0);
+
+                var lblUbicacion = new Label
+                {
+                    Text = inc.NombrePunto,
+                    TextColor = Color.FromArgb("#CCCCCC"),
+                    FontSize = 11,
+                    VerticalOptions = LayoutOptions.Center
+                };
+                Grid.SetColumn(lblUbicacion, 1);
+
+                ubicacionGrid.Children.Add(locationIcon);
+                ubicacionGrid.Children.Add(lblUbicacion);
+                stack.Children.Add(ubicacionGrid);
+            }
+
+            // Hora y estado
+            var estadoColor = inc.Estado == 0 ? Color.FromArgb("#F09595") : Color.FromArgb("#97C459");
             var estadoText = inc.Estado == 0 ? "⚠ Abierta" : "✓ Resuelta";
 
             stack.Children.Add(new Label
@@ -63,6 +95,7 @@ namespace RocLandSecurity.Views.Supervisor
                 FontSize = 11
             });
 
+            // Nota de resolución si existe
             if (!string.IsNullOrEmpty(inc.NotaResolucion))
             {
                 stack.Children.Add(new Label

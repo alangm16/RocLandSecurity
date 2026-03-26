@@ -204,10 +204,12 @@ namespace RocLandSecurity.Services
             readerP.Close();
 
             const string qIncidencias = @"
-                SELECT ID, Descripcion, FechaReporte, Estado, NotaResolucion
-                FROM TBL_ROCLAND_SECURITY_INCIDENCIAS
-                WHERE RondinID = @rondinID
-                ORDER BY FechaReporte";
+                SELECT i.ID, i.Descripcion, i.FechaReporte, i.Estado, i.NotaResolucion,
+                       ISNULL(pc.Nombre, '') AS NombrePunto
+                FROM TBL_ROCLAND_SECURITY_INCIDENCIAS i
+                LEFT JOIN TBL_ROCLAND_SECURITY_PUNTOSCONTROL pc ON i.PuntoID = pc.ID
+                WHERE i.RondinID = @rondinID
+                ORDER BY i.FechaReporte";
             using var cmdI = new SqlCommand(qIncidencias, conn);
             cmdI.Parameters.AddWithValue("@rondinID", rondinID);
             using var readerI = await cmdI.ExecuteReaderAsync();
@@ -218,7 +220,8 @@ namespace RocLandSecurity.Services
                     Descripcion = readerI.GetString(1),
                     FechaReporte = readerI.GetDateTime(2),
                     Estado = readerI.GetInt32(3),
-                    NotaResolucion = readerI.IsDBNull(4) ? null : readerI.GetString(4)
+                    NotaResolucion = readerI.IsDBNull(4) ? null : readerI.GetString(4),
+                    NombrePunto = readerI.GetString(5)   
                 });
 
             return detalle;
