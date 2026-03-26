@@ -340,7 +340,7 @@ namespace RocLandSecurity.Services
         public int Estado { get; set; }   // 0=Pendiente 1=Visitado 2=Omitido
         public double? LatitudG { get; set; }
         public double? LongitudG { get; set; }
-        public string? FotoPath { get; set; }
+        public byte[]? FotoPath { get; set; }
         public bool Sincronizado { get; set; } = false;
         public DateTime FechaModificacion { get; set; } = DateTime.Now;
     }
