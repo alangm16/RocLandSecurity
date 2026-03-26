@@ -118,7 +118,7 @@ namespace RocLandSecurity.Views.Supervisor
         // FILA DE PUNTO DE CONTROL
         // ─────────────────────────────────────────────────────────────────
 
-        private static readonly HashSet<int> _ordenesConFoto = new() { 1, 11, 19 };
+        private static readonly HashSet<int> _ordenesConFoto = new() { 1, 11, 19 , 20};
 
         private View CrearFilaPunto(PuntoDetalleItem punto)
         {

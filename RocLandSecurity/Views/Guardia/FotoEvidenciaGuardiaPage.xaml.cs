@@ -3,12 +3,7 @@ using System.IO;
 
 namespace RocLandSecurity.Views.Guardia
 {
-    /// <summary>
-    /// Página exclusiva del GUARDIA para capturar la foto de evidencia de un punto.
-    /// Solo usa OfflineDatabaseService (local + sync).
-    /// Se navega desde RondinActivoPage vía Shell:
-    ///   Shell.Current.GoToAsync($"fotoevidenciaguardia?localId={puntoLocal.LocalID}")
-    /// </summary>
+
     [QueryProperty(nameof(LocalId), "localId")]
     public partial class FotoEvidenciaGuardiaPage : ContentPage
     {
@@ -47,13 +42,13 @@ namespace RocLandSecurity.Views.Guardia
                 var status = await Permissions.RequestAsync<Permissions.Camera>();
                 if (status != PermissionStatus.Granted)
                 {
-                    await DisplayAlert("Permiso requerido", "Se necesita permiso de cámara.", "OK");
+                    await DisplayAlertAsync("Permiso requerido", "Se necesita permiso de cámara.", "OK");
                     return;
                 }
 
                 if (!MediaPicker.Default.IsCaptureSupported)
                 {
-                    await DisplayAlert("No disponible", "Este dispositivo no soporta captura de fotos.", "OK");
+                    await DisplayAlertAsync("No disponible", "Este dispositivo no soporta captura de fotos.", "OK");
                     return;
                 }
 
@@ -63,7 +58,10 @@ namespace RocLandSecurity.Views.Guardia
                 using var stream = await photo.OpenReadAsync();
                 using var memoryStream = new MemoryStream();
                 await stream.CopyToAsync(memoryStream);
-                _fotoBytes = memoryStream.ToArray();
+
+                // ── COMPRESIÓN: redimensionar a 1280×960, JPEG 78% ──────────────
+                var rawBytes = memoryStream.ToArray();
+                _fotoBytes = await Task.Run(() => ImageCompressor.ComprimirFoto(rawBytes));
 
                 ImgEvidencia.Source = ImageSource.FromStream(() => new MemoryStream(_fotoBytes));
                 LblSinFoto.IsVisible = false;
@@ -72,7 +70,7 @@ namespace RocLandSecurity.Views.Guardia
             }
             catch (Exception ex)
             {
-                await DisplayAlert("Error", ex.Message, "OK");
+                await DisplayAlertAsync("Error", ex.Message, "OK");
             }
         }
 
