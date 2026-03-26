@@ -5,11 +5,11 @@ namespace RocLandSecurity.Views.Supervisor
 {
     public partial class SupervisorHomePage : ContentPage
     {
-        private readonly DatabaseService _db;
+        private readonly SupervisorDatabaseService _db;
         private readonly SessionService _session;
         private readonly OfflineDatabaseService _offline;
 
-        public SupervisorHomePage(DatabaseService db, SessionService session, OfflineDatabaseService offline)
+        public SupervisorHomePage(SupervisorDatabaseService db, SessionService session, OfflineDatabaseService offline)
         {
             InitializeComponent();
             _db = db;

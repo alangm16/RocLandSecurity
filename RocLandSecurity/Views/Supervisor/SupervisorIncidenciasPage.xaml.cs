@@ -5,12 +5,12 @@ namespace RocLandSecurity.Views.Supervisor
 {
     public partial class SupervisorIncidenciasPage : ContentPage
     {
-        private readonly DatabaseService _db;
+        private readonly SupervisorDatabaseService _db;
         private readonly SessionService _session;
 
         private List<IncidenciaSupervisorItem> _todasIncidencias = new();
 
-        public SupervisorIncidenciasPage(DatabaseService db, SessionService session)
+        public SupervisorIncidenciasPage(SupervisorDatabaseService db, SessionService session)
         {
             InitializeComponent();
             _db = db;

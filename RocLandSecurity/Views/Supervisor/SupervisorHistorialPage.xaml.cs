@@ -5,7 +5,7 @@ namespace RocLandSecurity.Views.Supervisor
 {
     public partial class SupervisorHistorialPage : ContentPage
     {
-        private readonly DatabaseService _db;
+        private readonly SupervisorDatabaseService _db;
         private readonly SessionService  _session;
         private readonly OfflineDatabaseService _offline;
 
@@ -15,7 +15,7 @@ namespace RocLandSecurity.Views.Supervisor
 
         private bool _cargandoHistorial = false;
 
-        public SupervisorHistorialPage(DatabaseService db, SessionService session, OfflineDatabaseService offline)
+        public SupervisorHistorialPage(SupervisorDatabaseService db, SessionService session, OfflineDatabaseService offline)
         {
             InitializeComponent();
             _db      = db;

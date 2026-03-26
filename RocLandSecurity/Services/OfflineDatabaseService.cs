@@ -3,7 +3,6 @@ using RocLandSecurity.Models;
 
 namespace RocLandSecurity.Services
 {
-    /// <summary>
     /// Fachada que reemplaza el uso directo de DatabaseService en las páginas.
     /// 
     /// REGLA PRINCIPAL:
@@ -11,19 +10,20 @@ namespace RocLandSecurity.Services
     ///   - ESCRITURA: Siempre local. Si hay server, también. Si no, quedará en local.
     ///
     /// Las páginas solo llaman OfflineDatabaseService — no distinguen si hay internet.
-    /// </summary>
     public class OfflineDatabaseService
     {
-        private readonly DatabaseService _server;
+        private readonly GuardiaDatabaseService _server;
+        private readonly SharedDatabaseService _sharedDatabase;
         private readonly LocalDatabase _local;
         private readonly ConnectivityService _connectivity;
         private readonly SyncService _sync;
         private readonly INotificationManagerService? _notificationService;
 
-        public OfflineDatabaseService(DatabaseService server, LocalDatabase local,
+        public OfflineDatabaseService(GuardiaDatabaseService server, SharedDatabaseService sharedDatabase, LocalDatabase local,
             ConnectivityService connectivity, SyncService sync, INotificationManagerService? notificationService = null)
         {
             _server = server;
+            _sharedDatabase = sharedDatabase;
             _local = local;
             _connectivity = connectivity;
             _sync = sync;
@@ -81,7 +81,7 @@ namespace RocLandSecurity.Services
 
             if (online)
             {
-                var user = await _server.GetUsuarioByLoginAsync(usuario, hashContrasena);
+                var user = await _sharedDatabase.GetUsuarioByLoginAsync(usuario, hashContrasena);
                 if (user != null)
                 {
                     // Cachear para login offline futuro
@@ -113,7 +113,7 @@ namespace RocLandSecurity.Services
 
             if (online)
             {
-                var user = await _server.GetUsuarioByQRAsync(qrCode);
+                var user = await _sharedDatabase.GetUsuarioByQRAsync(qrCode);
                 if (user != null)
                 {
                     try
@@ -555,7 +555,7 @@ namespace RocLandSecurity.Services
         {
             if (await _connectivity.CheckServerAsync())
             {
-                var lista = await _server.GetPuntosControlAsync();
+                var lista = await _sharedDatabase.GetPuntosControlAsync();
                 // Actualizar caché local con los más recientes
                 foreach (var p in lista)
                     await _local.UpsertPuntoControlAsync(new PuntoControlLocal

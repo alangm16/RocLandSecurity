@@ -83,7 +83,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
-	  <MauiXaml Update="Views\Guardia\FotoEvidenciaPage.xaml">
+	  <MauiXaml Update="Views\Shared\FotoEvidenciaPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
 	  <MauiXaml Update="Views\Guardia\GuardiaHomePage.xaml">

@@ -7,11 +7,11 @@ namespace RocLandSecurity.Views.Supervisor
 {
     public partial class RondinDetalleSupervisorPage : ContentPage
     {
-        private readonly DatabaseService _db;
+        private readonly SupervisorDatabaseService _db;
         private readonly OfflineDatabaseService _offline;
         private readonly int _rondinID;
 
-        public RondinDetalleSupervisorPage(DatabaseService db, OfflineDatabaseService offline, int rondinID)
+        public RondinDetalleSupervisorPage(SupervisorDatabaseService db, OfflineDatabaseService offline, int rondinID)
         {
             InitializeComponent();
             _db = db;

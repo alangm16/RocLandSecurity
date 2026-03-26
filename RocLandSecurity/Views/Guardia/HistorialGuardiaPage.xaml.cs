@@ -5,12 +5,12 @@ namespace RocLandSecurity.Views.Guardia
 {
     public partial class HistorialGuardiaPage : ContentPage
     {
-        private readonly DatabaseService _db;
+        private readonly GuardiaDatabaseService _db;
         private readonly SessionService _session;
         private readonly OfflineDatabaseService _offline;
         private readonly ConnectivityService _connectivity;
 
-        public HistorialGuardiaPage(DatabaseService db, SessionService session,
+        public HistorialGuardiaPage(GuardiaDatabaseService db, SessionService session,
             OfflineDatabaseService offline, ConnectivityService connectivity)
         {
             InitializeComponent();

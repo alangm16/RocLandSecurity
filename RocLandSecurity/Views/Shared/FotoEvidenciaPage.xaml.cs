@@ -17,9 +17,9 @@ namespace RocLandSecurity.Views.Guardia
         private int _localId;
         private byte[]? _fotoBytes;
         private readonly OfflineDatabaseService _offline;
-        private readonly DatabaseService _server;
+        private readonly SupervisorDatabaseService _server;
 
-        public FotoEvidenciaPage(OfflineDatabaseService offline, DatabaseService server)
+        public FotoEvidenciaPage(OfflineDatabaseService offline, SupervisorDatabaseService server)
         {
             InitializeComponent();
             _offline = offline;

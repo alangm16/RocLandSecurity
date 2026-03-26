@@ -43,8 +43,13 @@ namespace RocLandSecurity
             // Para dispositivo físico: usa la IP local de tu PC en la red WiFi
             const string connectionString = AppConfig.ConnectionString;
 
-            // ── Servicios (Singleton = una sola instancia en toda la app) ───
-            builder.Services.AddSingleton(new DatabaseService(connectionString));
+            // ── Servicios ───
+            builder.Services.AddSingleton<SharedDatabaseService>(sp =>
+                new SharedDatabaseService(AppConfig.ConnectionString));
+            builder.Services.AddSingleton<GuardiaDatabaseService>(sp =>
+                new GuardiaDatabaseService(AppConfig.ConnectionString));
+            builder.Services.AddSingleton<SupervisorDatabaseService>(sp =>
+                new SupervisorDatabaseService(AppConfig.ConnectionString));
             builder.Services.AddSingleton<SessionService>();
             builder.Services.AddSingleton<IFlashlightService, FlashlightService>();
 
