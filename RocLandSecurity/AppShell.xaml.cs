@@ -13,6 +13,7 @@ namespace RocLandSecurity
             Routing.RegisterRoute("rondinactivo", typeof(RondinActivoPage));
             Routing.RegisterRoute("reportarincidencia", typeof(ReportarIncidenciaPage));
             Routing.RegisterRoute("supervisorincidencias", typeof(SupervisorIncidenciasPage));
+            Routing.RegisterRoute("fotoevidencia", typeof(FotoEvidenciaPage));
         }
 
         public async Task MostrarTabBarGuardiaAsync()

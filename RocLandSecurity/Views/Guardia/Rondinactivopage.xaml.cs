@@ -525,6 +525,18 @@ namespace RocLandSecurity.Views.Guardia
 
                     await _offline.RegistrarVisitaPuntoAsync(puntoEscaneado.ID, lat, lon, _rondinId, codigoLeido);
 
+                    // Validar si es punto 1, 11 o 19
+                    int orden = puntoEscaneado.OrdenPunto;
+                    if (orden == 1 || orden == 11 || orden == 19)
+                    {
+                        // Pequeña pausa para que el usuario vea el check verde antes de saltar a la foto
+                        await Task.Delay(500);
+
+                        // Navegar a la página de foto
+                        // Asegúrate de registrar esta ruta en AppShell.xaml.cs
+                        await Shell.Current.GoToAsync("fotoevidencia");
+                    }
+
                     var local = _puntos.First(p => p.ID == puntoEscaneado.ID);
                     local.Estado = 1;
                     local.HoraVisita = DateTime.Now;
