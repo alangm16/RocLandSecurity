@@ -11,7 +11,6 @@ namespace RocLandSecurity.Services
         public SharedDatabaseService(string connectionString) : base(connectionString) { }
 
         // USUARIOS / AUTENTICACIÓN
-
         public async Task<Usuario?> GetUsuarioByLoginAsync(string usuario, string hashContrasena)
         {
             using var conn = new SqlConnection(ConnectionString);

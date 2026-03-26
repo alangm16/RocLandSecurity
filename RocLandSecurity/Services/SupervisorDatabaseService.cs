@@ -7,13 +7,11 @@ namespace RocLandSecurity.Services
     /// métricas, detalle de rondines, historial por fecha y gestión de
     /// incidencias. Requiere conexión permanente al servidor.
     /// Registrado como Singleton en MauiProgram.cs.
-
     public class SupervisorDatabaseService : DatabaseServiceBase
     {
         public SupervisorDatabaseService(string connectionString) : base(connectionString) { }
 
         // TURNO ACTIVO vista supervisor
-
         public async Task<Turno?> GetTurnoActivoAsync()
         {
             try

@@ -1,14 +1,10 @@
 ﻿using RocLandSecurity.Models;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace RocLandSecurity.Services
 {
-    /// <summary>
+
     /// Mantiene al usuario autenticado en memoria durante la sesión.
     /// Registrado como Singleton en MauiProgram.cs.
-    /// </summary>
     public class SessionService
     {
         public Usuario? UsuarioActual { get; private set; }

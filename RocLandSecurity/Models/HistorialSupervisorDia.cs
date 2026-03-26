@@ -1,8 +1,8 @@
 ﻿namespace RocLandSecurity.Models
 {
-    /// <summary>
+
     /// DTO para mostrar el historial de un día específico para supervisor.
-    /// </summary>
+
     public class HistorialSupervisorDia
     {
         public DateTime Fecha { get; set; }
@@ -25,9 +25,9 @@
         }
     }
 
-    /// <summary>
+
     /// Información de un turno específico en un día.
-    /// </summary>
+
     public class HistorialTurnoDia
     {
         public int TurnoID { get; set; }
@@ -49,9 +49,7 @@
             : 0;
     }
 
-    /// <summary>
     /// Información de un rondín en el historial.
-    /// </summary>
     public class HistorialRondinDia
     {
         public int ID { get; set; }
@@ -63,7 +61,7 @@
         public int PuntosTotal { get; set; }
         public int IncidenciasCount { get; set; }
 
-        /// <summary>Incidencias vinculadas a este rondín, cargadas para mostrar descripción.</summary>
+        /// Incidencias vinculadas a este rondín, cargadas para mostrar descripción.
         public List<IncidenciaSupervisorItem> Incidencias { get; set; } = new();
 
         public string HoraStr => HoraProgramada.ToString("HH:mm");

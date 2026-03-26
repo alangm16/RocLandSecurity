@@ -3,7 +3,6 @@ using RocLandSecurity.Models;
 
 namespace RocLandSecurity.Services
 {
-    /// <summary>
     /// Orquesta la sincronización entre SQLite local y SQL Server.
     ///
     /// POLÍTICA:
@@ -18,7 +17,7 @@ namespace RocLandSecurity.Services
     ///   2. Al completar una acción crítica (finalizar rondín, incidencia).
     ///   3. Al reconectar (ConnectivityService.ConnectivityChanged).
     ///   4. Timer cada 5 minutos si hay conexión.
-    /// </summary>
+    
     public class SyncService
     {
         private readonly LocalDatabase _local;
@@ -44,9 +43,7 @@ namespace RocLandSecurity.Services
             };
         }
 
-        // ─────────────────────────────────────────────────────────────────
         // ARRANQUE DEL TIMER
-        // ─────────────────────────────────────────────────────────────────
 
         public void IniciarTimerSync(int intervalMinutos = AppConfig.SyncTimerIntervaloMinutos)
         {
@@ -62,9 +59,7 @@ namespace RocLandSecurity.Services
 
         public void DetenerTimer() => _timer?.Dispose();
 
-        // ─────────────────────────────────────────────────────────────────
         // SINCRONIZACIÓN PRINCIPAL
-        // ─────────────────────────────────────────────────────────────────
 
         public async Task<SyncResult> SincronizarAsync(SyncReason razon = SyncReason.Manual)
         {
@@ -110,9 +105,7 @@ namespace RocLandSecurity.Services
             return result;
         }
 
-        // ─────────────────────────────────────────────────────────────────
         // DESCARGA: puntos de control (catálogo base)
-        // ─────────────────────────────────────────────────────────────────
 
         private async Task DescargarPuntosControlAsync(SqlConnection conn)
         {
@@ -135,9 +128,7 @@ namespace RocLandSecurity.Services
             }
         }
 
-        // ─────────────────────────────────────────────────────────────────
         // SUBIDA: rondines con estado modificado offline
-        // ─────────────────────────────────────────────────────────────────
 
         private async Task<int> SubirRondinesAsync(SqlConnection conn)
         {
@@ -175,13 +166,11 @@ namespace RocLandSecurity.Services
             return count;
         }
 
-        // ─────────────────────────────────────────────────────────────────
         // SUBIDA: visitas a puntos escaneados offline
-        // ─────────────────────────────────────────────────────────────────
 
         private async Task<int> SubirVisitasPuntosAsync(SqlConnection conn)
         {
-            var pendientes = await _local.GetPuntosPendientesSyncAsync(); // Ya filtra por Estado>0 y !Sincronizado
+            var pendientes = await _local.GetPuntosPendientesSyncAsync(); 
             int count = 0;
 
             foreach (var rp in pendientes)
@@ -236,9 +225,7 @@ namespace RocLandSecurity.Services
             return count;
         }
 
-        // ─────────────────────────────────────────────────────────────────
         // SUBIDA: incidencias creadas offline
-        // ─────────────────────────────────────────────────────────────────
 
         private async Task<int> SubirIncidenciasAsync(SqlConnection conn)
         {
@@ -276,14 +263,11 @@ namespace RocLandSecurity.Services
             return count;
         }
 
-        // ─────────────────────────────────────────────────────────────────
         // CACHÉ DE USUARIO para login offline
-        // ─────────────────────────────────────────────────────────────────
 
-        /// <summary>
         /// Descarga y cachea las credenciales del usuario autenticado
         /// para permitir login offline la próxima vez.
-        /// </summary>
+
         public async Task CachearUsuarioAsync(SqlConnection conn, int usuarioID)
         {
             const string q = @"
@@ -309,9 +293,7 @@ namespace RocLandSecurity.Services
         }
     }
 
-    // ─────────────────────────────────────────────────────────────────────
     // DTO de resultado de sincronización
-    // ─────────────────────────────────────────────────────────────────────
 
     public class SyncResult
     {

@@ -1,9 +1,8 @@
 using SQLite;
-using RocLandSecurity.Models;
 
 namespace RocLandSecurity.Services
 {
-    /// <summary>
+
     /// Base de datos SQLite local en el dispositivo.
     /// Actúa como espejo offline de SQL Server.
     /// Persiste entre cierres de app, reinicios y modo avión.
@@ -15,7 +14,7 @@ namespace RocLandSecurity.Services
     ///   - RondinPuntoLocal   : visitas a puntos con estado de sync
     ///   - IncidenciaLocal    : incidencias reportadas con estado de sync
     ///   - PuntoControlLocal  : catálogo de puntos QR (se sincroniza al inicio)
-    /// </summary>
+
     public class LocalDatabase
     {
         private SQLiteAsyncConnection? _db;
@@ -25,9 +24,17 @@ namespace RocLandSecurity.Services
         private static string DbPath =>
             Path.Combine(FileSystem.AppDataDirectory, "rocland_local.db3");
 
-        // ─────────────────────────────────────────────────────────────────
+        private SQLiteAsyncConnection Db => _db
+            ?? throw new InvalidOperationException("LocalDatabase no inicializada. Llama InitAsync primero.");
+
+        public Task<RondinPuntoLocal?> GetRondinPuntoPorLocalIDAsync(int localID) =>
+            Db.Table<RondinPuntoLocal>().Where(rp => rp.LocalID == localID).FirstOrDefaultAsync();
+
+        public Task<RondinPuntoLocal?> GetRondinPuntoPorServerIDAsync(int serverID) =>
+            Db.Table<RondinPuntoLocal>().Where(rp => rp.ServerID == serverID).FirstOrDefaultAsync();
+
+
         // INICIALIZACIÓN
-        // ─────────────────────────────────────────────────────────────────
 
         public async Task InitAsync()
         {
@@ -54,18 +61,7 @@ namespace RocLandSecurity.Services
             }
         }
 
-        private SQLiteAsyncConnection Db => _db
-            ?? throw new InvalidOperationException("LocalDatabase no inicializada. Llama InitAsync primero.");
-
-        public Task<RondinPuntoLocal?> GetRondinPuntoPorLocalIDAsync(int localID) =>
-            Db.Table<RondinPuntoLocal>().Where(rp => rp.LocalID == localID).FirstOrDefaultAsync();
-
-        public Task<RondinPuntoLocal?> GetRondinPuntoPorServerIDAsync(int serverID) =>
-            Db.Table<RondinPuntoLocal>().Where(rp => rp.ServerID == serverID).FirstOrDefaultAsync();
-
-        // ─────────────────────────────────────────────────────────────────
         // USUARIOS — Login offline
-        // ─────────────────────────────────────────────────────────────────
 
         public async Task UpsertUsuarioAsync(UsuarioLocal u)
         {
@@ -92,9 +88,7 @@ namespace RocLandSecurity.Services
               .Where(u => u.QRCode == qrCode && u.Activo)
               .FirstOrDefaultAsync();
 
-        // ─────────────────────────────────────────────────────────────────
         // PUNTOS DE CONTROL — Catálogo offline
-        // ─────────────────────────────────────────────────────────────────
 
         public Task UpsertPuntoControlAsync(PuntoControlLocal p) =>
             Db.InsertOrReplaceAsync(p);
@@ -102,9 +96,8 @@ namespace RocLandSecurity.Services
         public Task<List<PuntoControlLocal>> GetPuntosControlAsync() =>
             Db.Table<PuntoControlLocal>().OrderBy(p => p.Orden).ToListAsync();
 
-        // ─────────────────────────────────────────────────────────────────
         // TURNOS
-        // ─────────────────────────────────────────────────────────────────
+
 
         public Task UpsertTurnoAsync(TurnoLocal t) =>
             Db.InsertOrReplaceAsync(t);
@@ -129,9 +122,7 @@ namespace RocLandSecurity.Services
         public Task<TurnoLocal?> GetTurnoPorIDAsync(int turnoID) =>
             Db.Table<TurnoLocal>().Where(t => t.ID == turnoID).FirstOrDefaultAsync();
 
-        // ─────────────────────────────────────────────────────────────────
         // RONDINES
-        // ─────────────────────────────────────────────────────────────────
 
         public Task UpsertRondinAsync(RondinLocal r) =>
             Db.InsertOrReplaceAsync(r);
@@ -148,9 +139,7 @@ namespace RocLandSecurity.Services
         public Task<List<RondinLocal>> GetRondinesPendientesSyncAsync() =>
             Db.Table<RondinLocal>().Where(r => !r.Sincronizado).ToListAsync();
 
-        // ─────────────────────────────────────────────────────────────────
         // PUNTOS DE RONDÍN
-        // ─────────────────────────────────────────────────────────────────
 
         public Task UpsertRondinPuntoAsync(RondinPuntoLocal rp)
         {
@@ -182,9 +171,7 @@ namespace RocLandSecurity.Services
               .Where(rp => !rp.Sincronizado && rp.Estado > 0)
               .CountAsync();
 
-        // ─────────────────────────────────────────────────────────────────
         // INCIDENCIAS
-        // ─────────────────────────────────────────────────────────────────
 
         public async Task<int> InsertIncidenciaAsync(IncidenciaLocal inc)
         {
@@ -208,9 +195,7 @@ namespace RocLandSecurity.Services
               .Where(i => i.TurnoID == turnoID && i.RondinID == null)
               .ToListAsync();
 
-        // ─────────────────────────────────────────────────────────────────
         // MARCADO DE SYNC
-        // ─────────────────────────────────────────────────────────────────
 
         public async Task MarcarRondinSincronizadoAsync(int rondinID)
         {
@@ -237,9 +222,7 @@ namespace RocLandSecurity.Services
             }
         }
 
-        // ─────────────────────────────────────────────────────────────────
         // LIMPIEZA — Elimina registros sync de turnos > 7 días
-        // ─────────────────────────────────────────────────────────────────
 
         public async Task LimpiarDatosViejosAsync()
         {
@@ -277,9 +260,7 @@ namespace RocLandSecurity.Services
     }
 
 
-    // ─────────────────────────────────────────────────────────────────────
     // MODELOS SQLITE (tablas locales)
-    // ─────────────────────────────────────────────────────────────────────
 
     [Table("Usuarios")]
     public class UsuarioLocal

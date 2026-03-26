@@ -65,15 +65,12 @@ namespace RocLandSecurity.Services
             }
         }
 
-        // ─────────────────────────────────────────────────────────────────
         // AUTENTICACIÓN
-        // ─────────────────────────────────────────────────────────────────
 
-        /// <summary>
         /// Login con fallback offline.
         /// Online: valida con servidor y cachea credenciales.
         /// Offline: usa credenciales cacheadas en SQLite.
-        /// </summary>
+        
         public async Task<(Usuario? usuario, bool fueOffline)> LoginAsync(
             string usuario, string hashContrasena)
         {
@@ -106,7 +103,7 @@ namespace RocLandSecurity.Services
             }
         }
 
-        /// <summary>Login por QR con fallback offline.</summary>
+        /// Login por QR con fallback offline.
         public async Task<(Usuario? usuario, bool fueOffline)> LoginQRAsync(string qrCode)
         {
             bool online = await _connectivity.CheckServerAsync();
@@ -133,14 +130,11 @@ namespace RocLandSecurity.Services
             }
         }
 
-        // ─────────────────────────────────────────────────────────────────
         // TURNO
-        // ─────────────────────────────────────────────────────────────────
 
-        /// <summary>
         /// Obtiene turno activo. Requiere conexión para crear turnos nuevos.
         /// Si hay turno en local, lo devuelve aunque esté offline.
-        /// </summary>
+        
         public async Task<Turno?> GetTurnoActivoAsync(int guardiaID)
         {
             // Siempre verificar local primero (tiene el estado más actualizado)
@@ -159,7 +153,7 @@ namespace RocLandSecurity.Services
             return null;
         }
 
-        /// <summary>Crear turno — requiere conexión.</summary>
+        /// Crear turno — requiere conexión.
         public async Task<Turno> CrearTurnoYRondinesAsync(int guardiaID)
         {
             if (!await _connectivity.CheckServerAsync())
@@ -182,9 +176,7 @@ namespace RocLandSecurity.Services
             return turno;
         }
 
-        // ─────────────────────────────────────────────────────────────────
         // RONDINES
-        // ─────────────────────────────────────────────────────────────────
 
         public async Task<List<Rondin>> GetRondinesPorTurnoAsync(int turnoID)
         {
@@ -215,10 +207,9 @@ namespace RocLandSecurity.Services
             return (DateTime.Now, 0);
         }
 
-        /// <summary>
         /// Iniciar rondín: escribe en local siempre, sube a servidor si hay red.
         /// La validación de horario se realiza en el servidor usando AppConfig.
-        /// </summary>
+
         public async Task IniciarRondinAsync(int rondinID)
         {
             var local = await _local.GetRondinPorIDAsync(rondinID);
@@ -265,7 +256,6 @@ namespace RocLandSecurity.Services
             }
         }
 
-        /// <summary>
         /// Revisa todos los rondines del turno y cierra automáticamente los que hayan
         /// superado su ventana de tiempo. Se llama desde GuardiaHomePage antes de renderizar.
         ///
@@ -275,7 +265,7 @@ namespace RocLandSecurity.Services
         ///
         /// Devuelve la cantidad de rondines que fueron cerrados, para que la UI pueda
         /// mostrar un aviso si lo desea.
-        /// </summary>
+
         public async Task<int> ExpirarRondinesVencidosAsync(int turnoID)
         {
             if (!AppConfig.ModoEstrictoRondines) return 0;
@@ -397,9 +387,8 @@ namespace RocLandSecurity.Services
             return local != null ? MapRondinPunto(local) : null;
         }
 
-        /// <summary>
         /// Registrar visita: escribe en local primero, intenta servidor.
-        /// </summary>
+       
         public async Task<bool> RegistrarVisitaPuntoAsync(
             int rondinPuntoServerID, double? lat, double? lon,
             int rondinID = 0, string qrCode = "")
@@ -444,9 +433,8 @@ namespace RocLandSecurity.Services
             return false;
         }
 
-        /// <summary>
         /// Obtiene el punto de rondín local a partir del ServerID.
-        /// </summary>
+
         public async Task<RondinPuntoLocal?> GetRondinPuntoLocalPorServerIDAsync(int serverID)
         {
             return await _local.GetRondinPuntoPorServerIDAsync(serverID);
@@ -475,7 +463,7 @@ namespace RocLandSecurity.Services
             }
         }
 
-        /// <summary>Finalizar rondín: local + servidor + sync crítico.</summary>
+        /// Finalizar rondín: local + servidor + sync crítico.
         public async Task FinalizarRondinAsync(int rondinID)
         {
             // Actualizar local
@@ -513,9 +501,7 @@ namespace RocLandSecurity.Services
             }
         }
 
-        // ─────────────────────────────────────────────────────────────────
         // INCIDENCIAS
-        // ─────────────────────────────────────────────────────────────────
 
         public async Task CrearIncidenciaAsync(Incidencia inc)
         {
@@ -546,11 +532,11 @@ namespace RocLandSecurity.Services
             }
         }
 
-        /// <summary>
+
         /// Obtiene el catálogo de puntos de control.
         /// Online: del servidor (más actualizado).
         /// Offline: del catálogo local cacheado en SQLite.
-        /// </summary>
+
         public async Task<List<PuntoControl>> GetPuntosControlAsync()
         {
             if (await _connectivity.CheckServerAsync())
@@ -582,9 +568,7 @@ namespace RocLandSecurity.Services
             }).ToList();
         }
 
-        // ─────────────────────────────────────────────────────────────────
         // ESTADO DE PENDIENTES (para mostrar badge en UI)
-        // ─────────────────────────────────────────────────────────────────
 
         public async Task<int> GetTotalPendientesSyncAsync()
         {
@@ -594,15 +578,12 @@ namespace RocLandSecurity.Services
             return r + rp + i;
         }
 
-        // ─────────────────────────────────────────────────────────────────
         // HISTORIAL GUARDIA — OFFLINE
-        // ─────────────────────────────────────────────────────────────────
 
-        /// <summary>
         /// Historial del guardia construido desde SQLite local.
         /// Usado cuando no hay conexión al servidor.
         /// Solo muestra datos del turno activo local.
-        /// </summary>
+
         public async Task<List<RondinHistorialItem>> GetHistorialGuardiaLocalAsync(int guardiaID)
         {
             var turno = await _local.GetTurnoActivoAsync(guardiaID);
@@ -639,14 +620,11 @@ namespace RocLandSecurity.Services
             return items.OrderByDescending(i => i.HoraProgramada).ToList();
         }
 
-        // ─────────────────────────────────────────────────────────────────
         // HELPERS
-        // ─────────────────────────────────────────────────────────────────
 
-        /// <summary>
         /// Recalcula PuntosTotal y PuntosVisitados del rondín local
         /// a partir de los puntos en SQLite. Mantiene GuardiaHomePage actualizado.
-        /// </summary>
+
         private async Task ActualizarContadoresRondinAsync(int rondinID)
         {
             var rondin = await _local.GetRondinPorIDAsync(rondinID);
@@ -657,9 +635,7 @@ namespace RocLandSecurity.Services
             await _local.UpsertRondinAsync(rondin);
         }
 
-        // ─────────────────────────────────────────────────────────────────
         // MAPPERS
-        // ─────────────────────────────────────────────────────────────────
 
         private static Usuario MapUsuario(UsuarioLocal u) => new()
         {

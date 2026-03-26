@@ -1,10 +1,9 @@
 namespace RocLandSecurity.Services
 {
-    /// <summary>
     /// Detecta conectividad con el servidor SQL Server,
     /// no solo con internet en general (podría haber WiFi sin acceso al servidor).
     /// Registrado como Singleton.
-    /// </summary>
+
     public class ConnectivityService
     {
         private readonly string _serverHost;
@@ -38,10 +37,10 @@ namespace RocLandSecurity.Services
             return "192.168.1.94";
         }
 
-        /// <summary>
+
         /// Verifica conectividad real con el servidor.
         /// Usa un TCP connect rápido al puerto 1433.
-        /// </summary>
+
         public async Task<bool> CheckServerAsync()
         {
             // Si el sistema no tiene red, ni intentamos

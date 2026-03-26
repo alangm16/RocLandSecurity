@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-using Microsoft.Maui.ApplicationModel;
-
-namespace RocLandSecurity.Services
+﻿namespace RocLandSecurity.Services
 {
     public interface IFlashlightService
     {
