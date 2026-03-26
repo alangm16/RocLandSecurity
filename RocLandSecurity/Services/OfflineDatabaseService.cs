@@ -400,6 +400,8 @@ namespace RocLandSecurity.Services
             if (local == null && rondinPuntoServerID > 0)
                 local = (await _local.GetPuntosDeRondinAsync(rondinID))
                       .FirstOrDefault(p => p.ServerID == rondinPuntoServerID);
+            if (local == null && rondinPuntoServerID > 0)
+                local = await _local.GetRondinPuntoPorLocalIDAsync(rondinPuntoServerID);
 
             if (local != null)
             {
@@ -413,6 +415,11 @@ namespace RocLandSecurity.Services
 
                 // Actualizar contadores del rondín inmediatamente
                 await ActualizarContadoresRondinAsync(local.RondinID);
+            }
+            else
+            {
+                System.Diagnostics.Debug.WriteLine($"No se encontró punto para QR={qrCode}, ServerID={rondinPuntoServerID}, RondinID={rondinID}");
+                return false;
             }
 
             // Intentar servidor

@@ -170,40 +170,48 @@ namespace RocLandSecurity.Services
 
         private async Task<int> SubirVisitasPuntosAsync(SqlConnection conn)
         {
-            var pendientes = await _local.GetPuntosPendientesSyncAsync(); 
+            var pendientes = await _local.GetPuntosPendientesSyncAsync();
+            System.Diagnostics.Debug.WriteLine($"Subiendo {pendientes.Count} puntos pendientes.");
             int count = 0;
-
             foreach (var rp in pendientes)
             {
                 try
                 {
                     if (rp.ServerID > 0)
                     {
+                        // UPDATE
                         const string upd = @"
-                    UPDATE TBL_ROCLAND_SECURITY_RONDINESPUNTOS
-                    SET Estado = @estado, HoraVisita = @hora,
-                        LatitudG = @lat, LongitudG = @lon,
-                        FotoPath = @foto,
-                        Sincronizado = 1, FechaModificacion = @fechaMod
-                    WHERE ID = @id";
+                        UPDATE TBL_ROCLAND_SECURITY_RONDINESPUNTOS
+                        SET Estado = @estado, HoraVisita = @hora,
+                            LatitudG = @lat, LongitudG = @lon,
+                            FotoPath = @foto,
+                            Sincronizado = 1, FechaModificacion = @fechaMod
+                        WHERE ID = @id";
                         using var cmd = new SqlCommand(upd, conn);
                         cmd.Parameters.AddWithValue("@id", rp.ServerID);
                         cmd.Parameters.AddWithValue("@estado", rp.Estado);
                         cmd.Parameters.AddWithValue("@hora", (object?)rp.HoraVisita ?? DBNull.Value);
                         cmd.Parameters.AddWithValue("@lat", (object?)rp.LatitudG ?? DBNull.Value);
                         cmd.Parameters.AddWithValue("@lon", (object?)rp.LongitudG ?? DBNull.Value);
-                        cmd.Parameters.AddWithValue("@foto", (object?)rp.FotoPath ?? DBNull.Value);
+
+                        var fotoParam = cmd.Parameters.Add("@foto", System.Data.SqlDbType.VarBinary);
+                        if (rp.FotoPath != null && rp.FotoPath.Length > 0)
+                            fotoParam.Value = rp.FotoPath;
+                        else
+                            fotoParam.Value = DBNull.Value;
+
                         cmd.Parameters.AddWithValue("@fechaMod", rp.FechaModificacion);
                         await cmd.ExecuteNonQueryAsync();
                     }
                     else
                     {
+                        // INSERT
                         const string ins = @"
-                    INSERT INTO TBL_ROCLAND_SECURITY_RONDINESPUNTOS
-                        (RondinID, PuntoID, HoraVisita, Estado, LatitudG, LongitudG, FotoPath,
-                         Sincronizado, FechaModificacion)
-                    OUTPUT INSERTED.ID
-                    VALUES (@rondinID, @puntoID, @hora, @estado, @lat, @lon, @foto, 1, @fechaMod)";
+                            INSERT INTO TBL_ROCLAND_SECURITY_RONDINESPUNTOS
+                                (RondinID, PuntoID, HoraVisita, Estado, LatitudG, LongitudG, FotoPath,
+                                 Sincronizado, FechaModificacion)
+                            OUTPUT INSERTED.ID
+                            VALUES (@rondinID, @puntoID, @hora, @estado, @lat, @lon, @foto, 1, @fechaMod)";
                         using var cmd = new SqlCommand(ins, conn);
                         cmd.Parameters.AddWithValue("@rondinID", rp.RondinID);
                         cmd.Parameters.AddWithValue("@puntoID", rp.PuntoID);
@@ -211,16 +219,27 @@ namespace RocLandSecurity.Services
                         cmd.Parameters.AddWithValue("@estado", rp.Estado);
                         cmd.Parameters.AddWithValue("@lat", (object?)rp.LatitudG ?? DBNull.Value);
                         cmd.Parameters.AddWithValue("@lon", (object?)rp.LongitudG ?? DBNull.Value);
-                        cmd.Parameters.AddWithValue("@foto", (object?)rp.FotoPath ?? DBNull.Value);
+
+                        var fotoParam = cmd.Parameters.Add("@foto", System.Data.SqlDbType.VarBinary);
+                        if (rp.FotoPath != null && rp.FotoPath.Length > 0)
+                            fotoParam.Value = rp.FotoPath;
+                        else
+                            fotoParam.Value = DBNull.Value;
+
                         cmd.Parameters.AddWithValue("@fechaMod", rp.FechaModificacion);
                         var serverID = (int)(await cmd.ExecuteScalarAsync() ?? 0);
                         rp.ServerID = serverID;
+                        rp.Sincronizado = true;
+                        await _local.UpsertRondinPuntoAsync(rp);
                     }
-
                     await _local.MarcarPuntoSincronizadoAsync(rp.LocalID);
                     count++;
                 }
-                catch { /* Reintento en próximo ciclo */ }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Error subiendo punto {rp.LocalID}: {ex.Message}");
+                    System.Diagnostics.Debug.WriteLine($"Detalles: RondinID={rp.RondinID}, PuntoID={rp.PuntoID}, Estado={rp.Estado}, ServerID={rp.ServerID}, FotoPath={(rp.FotoPath != null ? rp.FotoPath.Length.ToString() : "null")}");
+                }
             }
             return count;
         }

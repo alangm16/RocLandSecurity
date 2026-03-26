@@ -57,10 +57,14 @@ namespace RocLandSecurity
             builder.Services.AddSingleton(new ConnectivityService(connectionString));
             builder.Services.AddSingleton<LocalDatabase>();
             builder.Services.AddSingleton<SyncService>(sp =>
-                new SyncService(
+            {
+                var sync = new SyncService(
                     sp.GetRequiredService<LocalDatabase>(),
                     sp.GetRequiredService<ConnectivityService>(),
-                    connectionString));
+                    connectionString);
+                sync.IniciarTimerSync();
+                return sync;
+            });
             builder.Services.AddSingleton<OfflineDatabaseService>();
 
             // ── Páginas (Transient = nueva instancia cada vez) ───────────────
