@@ -1,17 +1,21 @@
+using Microsoft.Maui.Controls.Shapes;
 using RocLandSecurity.Models;
 using RocLandSecurity.Services;
+using RocLandSecurity.Views.Guardia;
 
 namespace RocLandSecurity.Views.Supervisor
 {
     public partial class RondinDetalleSupervisorPage : ContentPage
     {
         private readonly DatabaseService _db;
+        private readonly OfflineDatabaseService _offline;
         private readonly int _rondinID;
 
-        public RondinDetalleSupervisorPage(DatabaseService db, int rondinID)
+        public RondinDetalleSupervisorPage(DatabaseService db, OfflineDatabaseService offline, int rondinID)
         {
             InitializeComponent();
             _db = db;
+            _offline = offline;
             _rondinID = rondinID;
         }
 
@@ -99,7 +103,6 @@ namespace RocLandSecurity.Views.Supervisor
                     ? detalle.HoraInicio.Value.ToString("HH:mm")
                     : "--:--";
 
-                // Retraso al inicio (diferencia entre programado e inicio real)
                 if (detalle.HoraInicio.HasValue)
                 {
                     var retraso = detalle.HoraInicio.Value - detalle.HoraProgramada;
@@ -111,7 +114,6 @@ namespace RocLandSecurity.Views.Supervisor
 
                 LblDuracion.Text = detalle.DuracionStr;
 
-                // Badge estado
                 var estadoColor = Color.FromArgb(detalle.EstadoColor);
                 LblEstado.Text = detalle.EstadoTexto;
                 LblEstado.TextColor = estadoColor;
@@ -130,7 +132,7 @@ namespace RocLandSecurity.Views.Supervisor
                 foreach (var punto in detalle.Puntos)
                     ListaPuntos.Children.Add(CrearFilaPunto(punto));
 
-                // ── Sección de incidencias (después de la lista de puntos) ──
+                // ── Sección de incidencias
                 if (detalle.Incidencias.Any())
                 {
                     var incidenciasHeader = new Label
@@ -144,9 +146,7 @@ namespace RocLandSecurity.Views.Supervisor
                     ListaPuntos.Children.Add(incidenciasHeader);
 
                     foreach (var inc in detalle.Incidencias)
-                    {
                         ListaPuntos.Children.Add(CrearFilaIncidencia(inc));
-                    }
                 }
 
                 PanelContenido.IsVisible = true;
@@ -169,124 +169,237 @@ namespace RocLandSecurity.Views.Supervisor
         {
             var colorPunto = Color.FromArgb(punto.EstadoColor);
 
-            // Contenedor principal
+            bool mostrarBotonFoto =
+                punto.FotoBytes != null &&
+                (punto.Orden == 1 || punto.Orden == 11 || punto.Orden == 19) &&
+                punto.Estado == 1;
+
+            var card = CrearCard();
+
+            // ── Layout de columnas:
+            // Col 0 → barra color (3px)
+            // Col 1 → orden/estado (36px)
+            // Col 2 → nombre (Star)
+            // Col 3 → botón foto (Auto) ← IZQUIERDA de la hora
+            // Col 4 → hora/intervalo (Auto)
+            var grid = CrearGridBase(mostrarBotonFoto);
+
+            AgregarBarraColor(grid, colorPunto);
+            AgregarOrdenEstado(grid, punto, colorPunto);
+            AgregarNombre(grid, punto);
+
+            if (mostrarBotonFoto)
+                AgregarBotonFoto(grid, punto);   // Col 3
+
+            AgregarHoraEIntervalo(grid, punto, mostrarBotonFoto); // Col 3 ó 4 según haya botón
+
+            card.Content = grid;
+            return card;
+        }
+
+        private static Border CrearCard()
+        {
             var card = new Border
             {
                 BackgroundColor = Color.FromArgb("#181818"),
-                StrokeThickness = 1,
                 Stroke = Color.FromArgb("#2A2A2A"),
-                Padding = new Thickness(0),
+                StrokeThickness = 1,
+                Padding = 0
             };
-            card.StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle
-            { CornerRadius = new CornerRadius(10) };
 
-            var row = new Grid
+            card.StrokeShape = new RoundRectangle
             {
-                ColumnDefinitions = new ColumnDefinitionCollection
-                {
-                    new ColumnDefinition { Width = new GridLength(3) },   // barra lateral
-                    new ColumnDefinition { Width = new GridLength(36) },  // número/icono
-                    new ColumnDefinition { Width = GridLength.Star },     // nombre
-                    new ColumnDefinition { Width = GridLength.Auto },     // hora + intervalo
-                },
-                Padding = new Thickness(0, 10),
+                CornerRadius = new CornerRadius(10)
             };
 
-            // Barra lateral de color
+            return card;
+        }
+
+        private static Grid CrearGridBase(bool mostrarBotonFoto)
+        {
+            var grid = new Grid
+            {
+                Padding = new Thickness(0, 10)
+            };
+
+            // Col 0: barra color
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(3) });
+            // Col 1: orden/icono
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(36) });
+            // Col 2: nombre
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Star });
+
+            if (mostrarBotonFoto)
+            {
+                // Col 3: botón foto (izquierda de la hora)
+                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                // Col 4: hora/intervalo
+                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            }
+            else
+            {
+                // Col 3: hora/intervalo
+                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            }
+
+            return grid;
+        }
+
+        private static void AgregarBarraColor(Grid grid, Color color)
+        {
             var barra = new BoxView
             {
-                Color = colorPunto,
-                VerticalOptions = LayoutOptions.Fill,
+                Color = color,
+                VerticalOptions = LayoutOptions.Fill
             };
-            Grid.SetColumn(barra, 0);
 
-            // Número de orden + icono de estado
-            var stackOrden = new VerticalStackLayout
+            Grid.SetColumn(barra, 0);
+            grid.Children.Add(barra);
+        }
+
+        private static void AgregarOrdenEstado(Grid grid, PuntoDetalleItem punto, Color color)
+        {
+            var stack = new VerticalStackLayout
             {
-                HorizontalOptions = LayoutOptions.Center,
-                VerticalOptions = LayoutOptions.Center,
                 Spacing = 1,
                 Padding = new Thickness(0, 0, 2, 0),
+                HorizontalOptions = LayoutOptions.Center,
+                VerticalOptions = LayoutOptions.Center
             };
-            stackOrden.Children.Add(new Label
+
+            stack.Children.Add(new Label
             {
                 Text = punto.EstadoIcon,
-                TextColor = colorPunto,
+                TextColor = color,
                 FontSize = 14,
                 FontAttributes = FontAttributes.Bold,
-                HorizontalOptions = LayoutOptions.Center,
+                HorizontalOptions = LayoutOptions.Center
             });
-            stackOrden.Children.Add(new Label
+
+            stack.Children.Add(new Label
             {
                 Text = punto.Orden.ToString(),
                 TextColor = Color.FromArgb("#555555"),
                 FontSize = 9,
-                HorizontalOptions = LayoutOptions.Center,
+                HorizontalOptions = LayoutOptions.Center
             });
-            Grid.SetColumn(stackOrden, 1);
 
-            // Nombre del punto
-            var lblNombre = new Label
+            Grid.SetColumn(stack, 1);
+            grid.Children.Add(stack);
+        }
+
+        private static void AgregarNombre(Grid grid, PuntoDetalleItem punto)
+        {
+            var label = new Label
             {
                 Text = punto.Nombre,
-                TextColor = punto.Estado == 0
-                    ? Color.FromArgb("#555555")   // Pendiente: gris oscuro
-                    : Colors.White,
                 FontSize = 13,
-                VerticalOptions = LayoutOptions.Center,
                 Padding = new Thickness(6, 0, 8, 0),
-            };
-            Grid.SetColumn(lblNombre, 2);
-
-            // Columna derecha: hora y tiempo entre QRs
-            var stackHora = new VerticalStackLayout
-            {
-                HorizontalOptions = LayoutOptions.End,
                 VerticalOptions = LayoutOptions.Center,
+                TextColor = punto.Estado == 0
+                    ? Color.FromArgb("#555555")
+                    : Colors.White
+            };
+
+            Grid.SetColumn(label, 2);
+            grid.Children.Add(label);
+        }
+
+        // columnaHora: 3 si no hay botón foto, 4 si hay botón foto
+        private static void AgregarHoraEIntervalo(Grid grid, PuntoDetalleItem punto, bool mostrarBotonFoto)
+        {
+            var stack = new VerticalStackLayout
+            {
                 Spacing = 2,
                 Padding = new Thickness(0, 0, 12, 0),
+                HorizontalOptions = LayoutOptions.End,
+                VerticalOptions = LayoutOptions.Center
             };
 
-            var lblHora = new Label
+            stack.Children.Add(new Label
             {
                 Text = punto.HoraStr,
-                TextColor = punto.Estado == 1 ? Colors.White : Color.FromArgb("#555555"),
                 FontSize = 13,
                 FontAttributes = FontAttributes.Bold,
                 HorizontalOptions = LayoutOptions.End,
-            };
-            stackHora.Children.Add(lblHora);
+                TextColor = punto.Estado == 1
+                    ? Colors.White
+                    : Color.FromArgb("#555555")
+            });
 
-            // Tiempo entre QRs consecutivos (solo si fue visitado y hay intervalo)
-            if (!string.IsNullOrEmpty(punto.IntervaloStr))
+            if (!string.IsNullOrEmpty(punto.IntervaloStr) && punto.Intervalo.HasValue)
             {
-                // Color basado en tiempo: verde < 3 min, amarillo 3-8 min, rojo > 8 min
-                Color intervaloColor;
-                if (punto.Intervalo!.Value.TotalMinutes < 3)
-                    intervaloColor = Color.FromArgb("#97C459");
-                else if (punto.Intervalo.Value.TotalMinutes < 8)
-                    intervaloColor = Color.FromArgb("#FAC775");
-                else
-                    intervaloColor = Color.FromArgb("#F09595");
-
-                stackHora.Children.Add(new Label
+                stack.Children.Add(new Label
                 {
                     Text = punto.IntervaloStr,
-                    TextColor = intervaloColor,
                     FontSize = 10,
                     HorizontalOptions = LayoutOptions.End,
+                    TextColor = ObtenerColorIntervalo(punto.Intervalo.Value)
                 });
             }
 
-            Grid.SetColumn(stackHora, 3);
+            // Si hay botón foto ocupa col 3, la hora va en col 4; si no, hora en col 3
+            Grid.SetColumn(stack, mostrarBotonFoto ? 4 : 3);
+            grid.Children.Add(stack);
+        }
 
-            row.Children.Add(barra);
-            row.Children.Add(stackOrden);
-            row.Children.Add(lblNombre);
-            row.Children.Add(stackHora);
+        private static Color ObtenerColorIntervalo(TimeSpan intervalo)
+        {
+            var minutos = intervalo.TotalMinutes;
 
-            card.Content = row;
-            return card;
+            if (minutos < 3)
+                return Color.FromArgb("#97C459");
+
+            if (minutos < 8)
+                return Color.FromArgb("#FAC775");
+
+            return Color.FromArgb("#F09595");
+        }
+
+        private void AgregarBotonFoto(Grid grid, PuntoDetalleItem punto)
+        {
+            var boton = new Border
+            {
+                BackgroundColor = Color.FromArgb("#252525"),
+                WidthRequest = 32,
+                HeightRequest = 32,
+                StrokeThickness = 0,
+                // Margen izquierdo para separarlo del nombre; sin margen derecho (la hora ya tiene el suyo)
+                Margin = new Thickness(4, 0, 8, 0),
+                HorizontalOptions = LayoutOptions.Center,
+                VerticalOptions = LayoutOptions.Center
+            };
+
+            boton.StrokeShape = new RoundRectangle
+            {
+                CornerRadius = new CornerRadius(8)
+            };
+
+            boton.Content = new Image
+            {
+                Source = "camera.png",
+                WidthRequest = 18,
+                HeightRequest = 18,
+                HorizontalOptions = LayoutOptions.Center,
+                VerticalOptions = LayoutOptions.Center
+            };
+
+            var tap = new TapGestureRecognizer();
+            tap.Tapped += async (_, _) =>
+            {
+                await Navigation.PushModalAsync(
+                    new FotoEvidenciaPage(_offline, _db)
+                    {
+                        ModoVisualizacion = true,
+                        PuntoServerID = punto.RondinPuntoID
+                    });
+            };
+
+            boton.GestureRecognizers.Add(tap);
+
+            // Siempre va en col 3 (definida justo antes de la hora en col 4)
+            Grid.SetColumn(boton, 3);
+            grid.Children.Add(boton);
         }
 
         // ─────────────────────────────────────────────────────────────────
@@ -307,9 +420,9 @@ namespace RocLandSecurity.Views.Supervisor
             ToastLabel.Text = message;
             ToastFrame.IsVisible = true;
             ToastFrame.Opacity = 0;
-            await ToastFrame.FadeTo(1, 200);
+            await ToastFrame.FadeToAsync(1, 200);
             await Task.Delay(2500);
-            await ToastFrame.FadeTo(0, 200);
+            await ToastFrame.FadeToAsync(0, 200);
             ToastFrame.IsVisible = false;
         }
     }

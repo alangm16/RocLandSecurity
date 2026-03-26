@@ -332,6 +332,17 @@ namespace RocLandSecurity.Services
             await cmd.ExecuteNonQueryAsync();
         }
 
+        public async Task<byte[]?> GetFotoPuntoAsync(int rondinPuntoID)
+        {
+            using var conn = new SqlConnection(connectionString);
+            await conn.OpenAsync();
+            const string q = "SELECT FotoPath FROM TBL_ROCLAND_SECURITY_RONDINESPUNTOS WHERE ID = @id";
+            using var cmd = new SqlCommand(q, conn);
+            cmd.Parameters.AddWithValue("@id", rondinPuntoID);
+            var result = await cmd.ExecuteScalarAsync();
+            return result == DBNull.Value ? null : (byte[])result;
+        }
+
         public async Task FinalizarRondinAsync(int rondinID)
         {
             using var conn = new SqlConnection(connectionString);
@@ -518,15 +529,17 @@ namespace RocLandSecurity.Services
 
             // Puntos en orden, con hora de visita
             const string qPuntos = @"
-        SELECT
-            pc.Orden,
-            pc.Nombre          AS NombrePunto,
-            rp.Estado          AS EstadoPunto,
-            rp.HoraVisita
-        FROM TBL_ROCLAND_SECURITY_RONDINESPUNTOS rp
-        INNER JOIN TBL_ROCLAND_SECURITY_PUNTOSCONTROL pc ON rp.PuntoID = pc.ID
-        WHERE rp.RondinID = @rondinID
-        ORDER BY pc.Orden";
+                SELECT
+                    rp.ID,                   
+                    pc.Orden,
+                    pc.Nombre,
+                    rp.Estado,
+                    rp.HoraVisita,
+                    rp.FotoPath              
+                FROM TBL_ROCLAND_SECURITY_RONDINESPUNTOS rp
+                INNER JOIN TBL_ROCLAND_SECURITY_PUNTOSCONTROL pc ON rp.PuntoID = pc.ID
+                WHERE rp.RondinID = @rondinID
+                ORDER BY pc.Orden";
 
             using var cmdP = new SqlCommand(qPuntos, conn);
             cmdP.Parameters.AddWithValue("@rondinID", rondinID);
@@ -537,7 +550,7 @@ namespace RocLandSecurity.Services
 
             while (await readerP.ReadAsync())
             {
-                var horaVisita = readerP.IsDBNull(3) ? (DateTime?)null : readerP.GetDateTime(3);
+                var horaVisita = readerP.IsDBNull(4) ? (DateTime?)null : readerP.GetDateTime(4);
 
                 TimeSpan? intervalo = null;
                 if (horaVisita.HasValue && horaAnterior.HasValue)
@@ -545,11 +558,13 @@ namespace RocLandSecurity.Services
 
                 puntos.Add(new PuntoDetalleItem
                 {
-                    Orden = readerP.GetInt32(0),
-                    Nombre = readerP.GetString(1),
-                    Estado = readerP.GetInt32(2),  // 0=Pendiente,1=Visitado,2=Omitido
+                    RondinPuntoID = readerP.GetInt32(0),           
+                    Orden = readerP.GetInt32(1),
+                    Nombre = readerP.GetString(2),
+                    Estado = readerP.GetInt32(3),
                     HoraVisita = horaVisita,
                     Intervalo = intervalo,
+                    FotoBytes = readerP.IsDBNull(5) ? null : (byte[])readerP.GetValue(5) 
                 });
 
                 if (horaVisita.HasValue)

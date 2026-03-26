@@ -24,7 +24,12 @@
 
         <VerticalStackLayout Grid.Row="2" Spacing="12">
             <Button x:Name="BtnTomarFoto" Text="Tomar Foto" 
-                    BackgroundColor="#6DBF2E" TextColor="Black" Clicked="OnTomarFotoClicked"/>
+                    BackgroundColor="#6DBF2E" TextColor="Black" Clicked="OnTomarFotoClicked"
+                    IsVisible="True"/>
+
+            <Button x:Name="BtnCerrar" Text="Cerrar" 
+                    BackgroundColor="#6DBF2E" TextColor="Black" Clicked="OnCerrarClicked"
+                    IsVisible="False"/>
 
             <Grid ColumnDefinitions="*, *" x:Name="PanelConfirmacion" IsVisible="False">
                 <Button Grid.Column="0" Text="Reintentar" BackgroundColor="#333333" Clicked="OnTomarFotoClicked"/>

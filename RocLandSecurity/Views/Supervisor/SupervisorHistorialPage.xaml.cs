@@ -7,6 +7,7 @@ namespace RocLandSecurity.Views.Supervisor
     {
         private readonly DatabaseService _db;
         private readonly SessionService  _session;
+        private readonly OfflineDatabaseService _offline;
 
         private DateTime       _fechaActual       = DateTime.Today;
         private DateTime       _fechaSeleccionada = DateTime.Today;
@@ -14,11 +15,12 @@ namespace RocLandSecurity.Views.Supervisor
 
         private bool _cargandoHistorial = false;
 
-        public SupervisorHistorialPage(DatabaseService db, SessionService session)
+        public SupervisorHistorialPage(DatabaseService db, SessionService session, OfflineDatabaseService offline)
         {
             InitializeComponent();
             _db      = db;
             _session = session;
+            _offline = offline;
         }
 
         protected override async void OnAppearing()
@@ -362,10 +364,10 @@ namespace RocLandSecurity.Views.Supervisor
                 var tap = new TapGestureRecognizer();
                 tap.Tapped += async (s, e) =>
                 {
-                    await row.FadeTo(0.6, 70);
-                    await row.FadeTo(1.0, 70);
+                    await row.FadeToAsync(0.6, 70);
+                    await row.FadeToAsync(1.0, 70);
                     await Navigation.PushModalAsync(
-                        new RondinDetalleSupervisorPage(_db, rondin.ID));
+                        new RondinDetalleSupervisorPage(_db,_offline,rondin.ID));
                 };
                 row.GestureRecognizers.Add(tap);
             }
@@ -531,7 +533,7 @@ namespace RocLandSecurity.Views.Supervisor
                         await row.FadeToAsync(0.6, 70);
                         await row.FadeToAsync(1.0, 70);
                         await Navigation.PushModalAsync(
-                            new RondinDetalleSupervisorPage(_db, rondin.ID));
+                            new RondinDetalleSupervisorPage(_db, _offline, rondin.ID));
                     };
                     row.GestureRecognizers.Add(outerTap);
                 }

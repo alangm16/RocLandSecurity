@@ -7,12 +7,14 @@ namespace RocLandSecurity.Views.Supervisor
     {
         private readonly DatabaseService _db;
         private readonly SessionService _session;
+        private readonly OfflineDatabaseService _offline;
 
-        public SupervisorHomePage(DatabaseService db, SessionService session)
+        public SupervisorHomePage(DatabaseService db, SessionService session, OfflineDatabaseService offline)
         {
             InitializeComponent();
             _db = db;
             _session = session;
+            _offline = offline;
         }
 
         protected override async void OnAppearing()
@@ -139,7 +141,7 @@ namespace RocLandSecurity.Views.Supervisor
 
                 // Navegar a la página de detalle
                 await Navigation.PushModalAsync(
-                    new RondinDetalleSupervisorPage(_db, rondin.ID));
+                    new RondinDetalleSupervisorPage(_db, _offline, rondin.ID));
             };
             card.GestureRecognizers.Add(tap);
             // ─────────────────────────────────────────────────────────────────────
