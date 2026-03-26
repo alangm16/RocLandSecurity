@@ -367,7 +367,7 @@ namespace RocLandSecurity.Views.Supervisor
                     await row.FadeToAsync(0.6, 70);
                     await row.FadeToAsync(1.0, 70);
                     await Navigation.PushModalAsync(
-                        new RondinDetalleSupervisorPage(_db,_offline,rondin.ID));
+                        new RondinDetalleSupervisorPage(_db,rondin.ID));
                 };
                 row.GestureRecognizers.Add(tap);
             }
@@ -533,7 +533,7 @@ namespace RocLandSecurity.Views.Supervisor
                         await row.FadeToAsync(0.6, 70);
                         await row.FadeToAsync(1.0, 70);
                         await Navigation.PushModalAsync(
-                            new RondinDetalleSupervisorPage(_db, _offline, rondin.ID));
+                            new RondinDetalleSupervisorPage(_db, rondin.ID));
                     };
                     row.GestureRecognizers.Add(outerTap);
                 }

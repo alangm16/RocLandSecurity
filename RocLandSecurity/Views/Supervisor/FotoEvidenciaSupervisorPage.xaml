@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="RocLandSecurity.Views.Supervisor.FotoEvidenciaSupervisorPage"
+             BackgroundColor="#111111"
+             Shell.NavBarIsVisible="False">
+
+    <Grid RowDefinitions="Auto, *, Auto" Padding="20, 50, 20, 30">
+
+        <Label Text="Foto de Evidencia"
+               TextColor="White" FontSize="20" FontAttributes="Bold"
+               HorizontalOptions="Center" Grid.Row="0"/>
+
+        <Border Grid.Row="1" Stroke="#2A2A2A" StrokeThickness="2" Margin="0,20">
+            <Border.StrokeShape>
+                <RoundRectangle CornerRadius="15"/>
+            </Border.StrokeShape>
+            <Grid>
+                <!-- Indicador de carga -->
+                <ActivityIndicator x:Name="LoadingIndicator"
+                                   IsRunning="True"
+                                   IsVisible="True"
+                                   Color="#6DBF2E"
+                                   HorizontalOptions="Center"
+                                   VerticalOptions="Center"/>
+
+                <!-- Mensaje si no hay foto o error -->
+                <Label x:Name="LblEstado"
+                       Text=""
+                       VerticalOptions="Center" HorizontalOptions="Center"
+                       TextColor="#888888"
+                       IsVisible="False"
+                       HorizontalTextAlignment="Center"
+                       Padding="20"/>
+
+                <!-- La foto cargada desde el servidor -->
+                <Image x:Name="ImgEvidencia"
+                       Aspect="AspectFit"
+                       IsVisible="False"/>
+            </Grid>
+        </Border>
+
+        <Button Grid.Row="2"
+                x:Name="BtnCerrar"
+                Text="Cerrar"
+                BackgroundColor="#6DBF2E" TextColor="Black"
+                Clicked="OnCerrarClicked"/>
+    </Grid>
+</ContentPage>

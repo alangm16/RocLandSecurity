@@ -141,7 +141,7 @@ namespace RocLandSecurity.Views.Supervisor
 
                 // Navegar a la página de detalle
                 await Navigation.PushModalAsync(
-                    new RondinDetalleSupervisorPage(_db, _offline, rondin.ID));
+                    new RondinDetalleSupervisorPage(_db, rondin.ID));
             };
             card.GestureRecognizers.Add(tap);
             // ─────────────────────────────────────────────────────────────────────

@@ -555,7 +555,7 @@ namespace RocLandSecurity.Views.Guardia
                     // Si requiere foto, navegar después de actualizar UI
                     if (puntoLocal != null && (orden == 1 || orden == 11 || orden == 19))
                     {
-                        await Shell.Current.GoToAsync($"fotoevidencia?localId={puntoLocal.LocalID}");
+                        await Shell.Current.GoToAsync($"fotoevidenciaguardia?localId={puntoLocal.LocalID}");
                     }
                 }
                 catch (Exception ex)

@@ -1,21 +1,23 @@
 using Microsoft.Maui.Controls.Shapes;
 using RocLandSecurity.Models;
 using RocLandSecurity.Services;
-using RocLandSecurity.Views.Guardia;
+
+// NOTA: ya no se importa RocLandSecurity.Views.Guardia — el supervisor
+// no navega a ninguna página del guardia.
 
 namespace RocLandSecurity.Views.Supervisor
 {
     public partial class RondinDetalleSupervisorPage : ContentPage
     {
         private readonly SupervisorDatabaseService _db;
-        private readonly OfflineDatabaseService _offline;
         private readonly int _rondinID;
 
-        public RondinDetalleSupervisorPage(SupervisorDatabaseService db, OfflineDatabaseService offline, int rondinID)
+        // OfflineDatabaseService eliminado: el supervisor opera siempre
+        // con conexión directa a SQL Server. No usa SQLite local.
+        public RondinDetalleSupervisorPage(SupervisorDatabaseService db, int rondinID)
         {
             InitializeComponent();
             _db = db;
-            _offline = offline;
             _rondinID = rondinID;
         }
 
@@ -25,90 +27,9 @@ namespace RocLandSecurity.Views.Supervisor
             await CargarDetalleAsync();
         }
 
+        // ─────────────────────────────────────────────────────────────────
         // CARGA
-        private View CrearFilaIncidencia(IncidenciaResumen inc)
-        {
-            var card = new Border
-            {
-                BackgroundColor = Color.FromArgb("#2A1A1A"),
-                StrokeThickness = 1,
-                Stroke = Color.FromArgb("#A32D2D"),
-                Padding = new Thickness(12, 10),
-            };
-            card.StrokeShape = new RoundRectangle { CornerRadius = new CornerRadius(10) };
-
-            var stack = new VerticalStackLayout { Spacing = 6 };
-
-            // Descripción
-            stack.Children.Add(new Label
-            {
-                Text = inc.Descripcion,
-                TextColor = Color.FromArgb("#F09595"),
-                FontSize = 13,
-                LineBreakMode = LineBreakMode.WordWrap
-            });
-
-            // Ubicación (punto) si existe
-            if (!string.IsNullOrEmpty(inc.NombrePunto))
-            {
-                var ubicacionGrid = new Grid
-                {
-                    ColumnDefinitions = new ColumnDefinitionCollection
-            {
-                new ColumnDefinition { Width = GridLength.Auto },
-                new ColumnDefinition { Width = GridLength.Star }
-            },
-                    ColumnSpacing = 6
-                };
-
-                var locationIcon = new Image
-                {
-                    Source = "location.png",
-                    WidthRequest = 12,
-                    HeightRequest = 12,
-                    VerticalOptions = LayoutOptions.Center
-                };
-                Grid.SetColumn(locationIcon, 0);
-
-                var lblUbicacion = new Label
-                {
-                    Text = inc.NombrePunto,
-                    TextColor = Color.FromArgb("#CCCCCC"),
-                    FontSize = 11,
-                    VerticalOptions = LayoutOptions.Center
-                };
-                Grid.SetColumn(lblUbicacion, 1);
-
-                ubicacionGrid.Children.Add(locationIcon);
-                ubicacionGrid.Children.Add(lblUbicacion);
-                stack.Children.Add(ubicacionGrid);
-            }
-
-            // Hora y estado
-            var estadoColor = inc.Estado == 0 ? Color.FromArgb("#F09595") : Color.FromArgb("#97C459");
-            var estadoText = inc.Estado == 0 ? "⚠ Abierta" : "✓ Resuelta";
-
-            stack.Children.Add(new Label
-            {
-                Text = $"{inc.FechaReporte:HH:mm:ss} · {estadoText}",
-                TextColor = estadoColor,
-                FontSize = 11
-            });
-
-            // Nota de resolución si existe
-            if (!string.IsNullOrEmpty(inc.NotaResolucion))
-            {
-                stack.Children.Add(new Label
-                {
-                    Text = $"Resolución: {inc.NotaResolucion}",
-                    TextColor = Color.FromArgb("#97C459"),
-                    FontSize = 11
-                });
-            }
-
-            card.Content = stack;
-            return card;
-        }
+        // ─────────────────────────────────────────────────────────────────
 
         private async Task CargarDetalleAsync()
         {
@@ -168,15 +89,14 @@ namespace RocLandSecurity.Views.Supervisor
                 // ── Sección de incidencias
                 if (detalle.Incidencias.Any())
                 {
-                    var incidenciasHeader = new Label
+                    ListaPuntos.Children.Add(new Label
                     {
                         Text = "Incidencias reportadas",
                         TextColor = Color.FromArgb("#F09595"),
                         FontSize = 14,
                         FontAttributes = FontAttributes.Bold,
                         Margin = new Thickness(0, 12, 0, 8)
-                    };
-                    ListaPuntos.Children.Add(incidenciasHeader);
+                    });
 
                     foreach (var inc in detalle.Incidencias)
                         ListaPuntos.Children.Add(CrearFilaIncidencia(inc));
@@ -198,23 +118,21 @@ namespace RocLandSecurity.Views.Supervisor
         // FILA DE PUNTO DE CONTROL
         // ─────────────────────────────────────────────────────────────────
 
+        private static readonly HashSet<int> _ordenesConFoto = new() { 1, 11, 19 };
+
         private View CrearFilaPunto(PuntoDetalleItem punto)
         {
             var colorPunto = Color.FromArgb(punto.EstadoColor);
 
+            // FIX: el botón se muestra si el punto fue VISITADO y es uno de los
+            // puntos que requieren foto. No depende de que FotoBytes esté cargado
+            // en memoria, porque los bytes se piden al servidor al tocar el botón.
             bool mostrarBotonFoto =
-                punto.FotoBytes != null &&
-                (punto.Orden == 1 || punto.Orden == 11 || punto.Orden == 19) &&
-                punto.Estado == 1;
+                punto.Estado == 1 &&
+                _ordenesConFoto.Contains(punto.Orden);
 
             var card = CrearCard();
 
-            // ── Layout de columnas:
-            // Col 0 → barra color (3px)
-            // Col 1 → orden/estado (36px)
-            // Col 2 → nombre (Star)
-            // Col 3 → botón foto (Auto) ← IZQUIERDA de la hora
-            // Col 4 → hora/intervalo (Auto)
             var grid = CrearGridBase(mostrarBotonFoto);
 
             AgregarBarraColor(grid, colorPunto);
@@ -224,7 +142,7 @@ namespace RocLandSecurity.Views.Supervisor
             if (mostrarBotonFoto)
                 AgregarBotonFoto(grid, punto);   // Col 3
 
-            AgregarHoraEIntervalo(grid, punto, mostrarBotonFoto); // Col 3 ó 4 según haya botón
+            AgregarHoraEIntervalo(grid, punto, mostrarBotonFoto); // Col 3 ó 4
 
             card.Content = grid;
             return card;
@@ -255,23 +173,23 @@ namespace RocLandSecurity.Views.Supervisor
                 Padding = new Thickness(0, 10)
             };
 
-            // Col 0: barra color
+            // Col 0: barra color (3px)
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(3) });
-            // Col 1: orden/icono
+            // Col 1: orden/icono (36px)
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(36) });
-            // Col 2: nombre
+            // Col 2: nombre (*)
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Star });
 
             if (mostrarBotonFoto)
             {
-                // Col 3: botón foto (izquierda de la hora)
+                // Col 3: botón foto (Auto)
                 grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-                // Col 4: hora/intervalo
+                // Col 4: hora/intervalo (Auto)
                 grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             }
             else
             {
-                // Col 3: hora/intervalo
+                // Col 3: hora/intervalo (Auto)
                 grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             }
 
@@ -285,7 +203,6 @@ namespace RocLandSecurity.Views.Supervisor
                 Color = color,
                 VerticalOptions = LayoutOptions.Fill
             };
-
             Grid.SetColumn(barra, 0);
             grid.Children.Add(barra);
         }
@@ -333,12 +250,10 @@ namespace RocLandSecurity.Views.Supervisor
                     ? Color.FromArgb("#555555")
                     : Colors.White
             };
-
             Grid.SetColumn(label, 2);
             grid.Children.Add(label);
         }
 
-        // columnaHora: 3 si no hay botón foto, 4 si hay botón foto
         private static void AgregarHoraEIntervalo(Grid grid, PuntoDetalleItem punto, bool mostrarBotonFoto)
         {
             var stack = new VerticalStackLayout
@@ -379,13 +294,8 @@ namespace RocLandSecurity.Views.Supervisor
         private static Color ObtenerColorIntervalo(TimeSpan intervalo)
         {
             var minutos = intervalo.TotalMinutes;
-
-            if (minutos < 3)
-                return Color.FromArgb("#97C459");
-
-            if (minutos < 8)
-                return Color.FromArgb("#FAC775");
-
+            if (minutos < 3)  return Color.FromArgb("#97C459");
+            if (minutos < 8)  return Color.FromArgb("#FAC775");
             return Color.FromArgb("#F09595");
         }
 
@@ -397,17 +307,11 @@ namespace RocLandSecurity.Views.Supervisor
                 WidthRequest = 32,
                 HeightRequest = 32,
                 StrokeThickness = 0,
-                // Margen izquierdo para separarlo del nombre; sin margen derecho (la hora ya tiene el suyo)
                 Margin = new Thickness(4, 0, 8, 0),
                 HorizontalOptions = LayoutOptions.Center,
                 VerticalOptions = LayoutOptions.Center
             };
-
-            boton.StrokeShape = new RoundRectangle
-            {
-                CornerRadius = new CornerRadius(8)
-            };
-
+            boton.StrokeShape = new RoundRectangle { CornerRadius = new CornerRadius(8) };
             boton.Content = new Image
             {
                 Source = "camera.png",
@@ -420,19 +324,101 @@ namespace RocLandSecurity.Views.Supervisor
             var tap = new TapGestureRecognizer();
             tap.Tapped += async (_, _) =>
             {
-                await Navigation.PushModalAsync(
-                    new FotoEvidenciaPage(_offline, _db)
-                    {
-                        ModoVisualizacion = true,
-                        PuntoServerID = punto.RondinPuntoID
-                    });
+                // FIX: navega a FotoEvidenciaSupervisorPage (solo SQL Server).
+                // No usa OfflineDatabaseService ni SQLite en ningún momento.
+                var fotoPage = new FotoEvidenciaSupervisorPage(_db, punto.RondinPuntoID);
+                await Navigation.PushModalAsync(fotoPage);
             };
-
             boton.GestureRecognizers.Add(tap);
 
-            // Siempre va en col 3 (definida justo antes de la hora en col 4)
             Grid.SetColumn(boton, 3);
             grid.Children.Add(boton);
+        }
+
+        // ─────────────────────────────────────────────────────────────────
+        // FILA DE INCIDENCIA
+        // ─────────────────────────────────────────────────────────────────
+
+        private View CrearFilaIncidencia(IncidenciaResumen inc)
+        {
+            var card = new Border
+            {
+                BackgroundColor = Color.FromArgb("#2A1A1A"),
+                StrokeThickness = 1,
+                Stroke = Color.FromArgb("#A32D2D"),
+                Padding = new Thickness(12, 10),
+            };
+            card.StrokeShape = new RoundRectangle { CornerRadius = new CornerRadius(10) };
+
+            var stack = new VerticalStackLayout { Spacing = 6 };
+
+            stack.Children.Add(new Label
+            {
+                Text = inc.Descripcion,
+                TextColor = Color.FromArgb("#F09595"),
+                FontSize = 13,
+                LineBreakMode = LineBreakMode.WordWrap
+            });
+
+            if (!string.IsNullOrEmpty(inc.NombrePunto))
+            {
+                var ubicacionGrid = new Grid
+                {
+                    ColumnDefinitions = new ColumnDefinitionCollection
+                    {
+                        new ColumnDefinition { Width = GridLength.Auto },
+                        new ColumnDefinition { Width = GridLength.Star }
+                    },
+                    ColumnSpacing = 6
+                };
+
+                var locationIcon = new Image
+                {
+                    Source = "location.png",
+                    WidthRequest = 12,
+                    HeightRequest = 12,
+                    VerticalOptions = LayoutOptions.Center
+                };
+                Grid.SetColumn(locationIcon, 0);
+
+                var lblUbicacion = new Label
+                {
+                    Text = inc.NombrePunto,
+                    TextColor = Color.FromArgb("#CCCCCC"),
+                    FontSize = 11,
+                    VerticalOptions = LayoutOptions.Center
+                };
+                Grid.SetColumn(lblUbicacion, 1);
+
+                ubicacionGrid.Children.Add(locationIcon);
+                ubicacionGrid.Children.Add(lblUbicacion);
+                stack.Children.Add(ubicacionGrid);
+            }
+
+            var estadoColor = inc.Estado == 0
+                ? Color.FromArgb("#F09595")
+                : Color.FromArgb("#97C459");
+            var estadoText = inc.Estado == 0 ? "⚠ Abierta" : "✓ Resuelta";
+
+            stack.Children.Add(new Label
+            {
+                Text = $"{inc.FechaReporte:HH:mm:ss} · {estadoText}",
+                TextColor = estadoColor,
+                FontSize = 11
+            });
+
+            if (!string.IsNullOrEmpty(inc.NotaResolucion))
+            {
+                stack.Children.Add(new Label
+                {
+                    Text = $"Resolución: {inc.NotaResolucion}",
+                    TextColor = Color.FromArgb("#97C459"),
+                    FontSize = 11
+                });
+            }
+
+            card.Content = stack;
+            return card;
         }
 
         // ─────────────────────────────────────────────────────────────────

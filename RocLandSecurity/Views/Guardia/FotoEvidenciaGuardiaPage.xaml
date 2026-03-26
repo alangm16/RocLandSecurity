@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-             x:Class="RocLandSecurity.Views.Guardia.FotoEvidenciaPage"
+             x:Class="RocLandSecurity.Views.Guardia.FotoEvidenciaGuardiaPage"
              BackgroundColor="#111111"
              Shell.NavBarIsVisible="False">
 
     <Grid RowDefinitions="Auto, *, Auto" Padding="20, 50, 20, 30">
 
-        <Label Text="Evidencia Fotográfica" 
+        <Label Text="Evidencia Fotográfica"
                TextColor="White" FontSize="20" FontAttributes="Bold"
                HorizontalOptions="Center" Grid.Row="0"/>
 
@@ -16,24 +16,29 @@
                 <RoundRectangle CornerRadius="15"/>
             </Border.StrokeShape>
             <Grid>
-                <Label Text="No se ha tomado foto" VerticalOptions="Center" HorizontalOptions="Center" TextColor="#555555"
-                       IsVisible="{Binding Source={x:Reference ImgEvidencia}, Path=Source, Converter={StaticResource NullToBoolConverter}}"/>
+                <!-- Controlado desde code-behind, sin converter -->
+                <Label x:Name="LblSinFoto"
+                       Text="No se ha tomado foto"
+                       VerticalOptions="Center" HorizontalOptions="Center"
+                       TextColor="#555555"
+                       IsVisible="True"/>
                 <Image x:Name="ImgEvidencia" Aspect="AspectFill" />
             </Grid>
         </Border>
 
         <VerticalStackLayout Grid.Row="2" Spacing="12">
-            <Button x:Name="BtnTomarFoto" Text="Tomar Foto" 
-                    BackgroundColor="#6DBF2E" TextColor="Black" Clicked="OnTomarFotoClicked"
+            <Button x:Name="BtnTomarFoto" Text="Tomar Foto"
+                    BackgroundColor="#6DBF2E" TextColor="Black"
+                    Clicked="OnTomarFotoClicked"
                     IsVisible="True"/>
 
-            <Button x:Name="BtnCerrar" Text="Cerrar" 
-                    BackgroundColor="#6DBF2E" TextColor="Black" Clicked="OnCerrarClicked"
-                    IsVisible="False"/>
-
             <Grid ColumnDefinitions="*, *" x:Name="PanelConfirmacion" IsVisible="False">
-                <Button Grid.Column="0" Text="Reintentar" BackgroundColor="#333333" Clicked="OnTomarFotoClicked"/>
-                <Button Grid.Column="1" Text="Continuar" BackgroundColor="#6DBF2E" TextColor="Black" Clicked="OnContinuarClicked"/>
+                <Button Grid.Column="0" Text="Reintentar"
+                        BackgroundColor="#333333" TextColor="White"
+                        Clicked="OnTomarFotoClicked"/>
+                <Button Grid.Column="1" Text="Continuar"
+                        BackgroundColor="#6DBF2E" TextColor="Black"
+                        Clicked="OnContinuarClicked"/>
             </Grid>
         </VerticalStackLayout>
     </Grid>
