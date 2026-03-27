@@ -30,5 +30,12 @@ namespace RocLandSecurity.Models
                     : Nombre[..Math.Min(2, Nombre.Length)].ToUpper();
             }
         }
+
+        public bool EsActivo => Activo;
+        public bool EsInactivo => !Activo;
+
+        public string Codigo => $"G--{ID:D3}";
+
+        public string FechaIngreso => FechaCreacion.ToString("dd/MM/yyyy");
     }
 }

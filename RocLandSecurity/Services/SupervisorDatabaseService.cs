@@ -462,5 +462,118 @@ namespace RocLandSecurity.Services
             while (await reader.ReadAsync()) fechas.Add(reader.GetDateTime(0));
             return fechas;
         }
+
+        // CRUD USUARIOS
+
+        public async Task<List<Usuario>> GetUsuarios(string? filtro = null)
+        {
+            var lista = new List<Usuario>();
+            using var conn = new SqlConnection(ConnectionString);
+            await conn.OpenAsync();
+
+            string query = @"
+                SELECT ID, Nombre, Usuario, Contrasena, QRCode, Rol, FechaCreacion,
+                    Activo FROM TBL_ROCLAND_SECURITY_USUARIOS
+                    Where Activo = 1 and Rol = 0";
+
+            if (!string.IsNullOrWhiteSpace(filtro))
+            {
+                query += "AND (Nombre LIKE @filtro OR Usuario LIKE @filtro)";
+            }
+
+            using var cmd = new SqlCommand(query, conn);
+
+            if (!string.IsNullOrWhiteSpace(filtro))
+            {
+                cmd.Parameters.AddWithValue("@filtro", $"%{filtro}%");
+            }
+
+            using var reader = await cmd.ExecuteReaderAsync();
+
+            while (await reader.ReadAsync())
+            {
+                lista.Add(MapUsuario(reader));
+            }
+            return lista;
+        }
+
+        public async Task<int> AgregarGuardiaAsync(string nombre, string usuarioLogin, string contrasena, string? qrCode)
+        {
+            using var conn = new SqlConnection(ConnectionString);
+            await conn.OpenAsync();
+
+            const string query = @"
+        INSERT INTO TBL_ROCLAND_SECURITY_USUARIOS
+            (Nombre, Usuario, Contrasena, QRCode, Rol, FechaCreacion, Activo)
+        VALUES
+            (@Nombre, @Usuario,
+             CONVERT(NVARCHAR(255), HASHBYTES('SHA2_256', CONVERT(VARCHAR(255), @Contrasena)), 2),
+             @QRCode, 0, GETDATE(), 1);
+        SELECT SCOPE_IDENTITY();";
+
+            using var cmdInsert = new SqlCommand(query, conn);
+            cmdInsert.Parameters.AddWithValue("@Nombre", nombre);
+            cmdInsert.Parameters.AddWithValue("@Usuario", usuarioLogin);
+            cmdInsert.Parameters.AddWithValue("@Contrasena", contrasena); // Texto plano
+            cmdInsert.Parameters.AddWithValue("@QRCode", (object?)qrCode ?? DBNull.Value);
+
+            var result = await cmdInsert.ExecuteScalarAsync();
+            return Convert.ToInt32(result);
+        }
+
+        public async Task EditarGuardiaAsync(int id, string nombre, string usuarioLogin,
+                                              string? nuevaContrasena, string? qrCode)
+        {
+            using var conn = new SqlConnection(ConnectionString);
+            await conn.OpenAsync();
+
+            string query;
+            if (!string.IsNullOrWhiteSpace(nuevaContrasena))
+            {
+                query = @"
+                    UPDATE TBL_ROCLAND_SECURITY_USUARIOS
+                    SET Nombre     = @Nombre,
+                        Usuario    = @Usuario,
+                        Contrasena = CONVERT(NVARCHAR(255), HASHBYTES('SHA2_256', CONVERT(VARCHAR(255), @Contrasena)), 2),
+                        QRCode     = @QRCode
+                    WHERE ID = @ID";
+            }
+            else
+            {
+                query = @"
+                    UPDATE TBL_ROCLAND_SECURITY_USUARIOS
+                    SET Nombre  = @Nombre,
+                        Usuario = @Usuario,
+                        QRCode  = @QRCode
+                    WHERE ID = @ID";
+            }
+
+            using var cmd = new SqlCommand(query, conn);
+            cmd.Parameters.AddWithValue("@ID", id);
+            cmd.Parameters.AddWithValue("@Nombre", nombre);
+            cmd.Parameters.AddWithValue("@Usuario", usuarioLogin);
+            cmd.Parameters.AddWithValue("@QRCode", (object?)qrCode ?? DBNull.Value);
+
+            if (!string.IsNullOrWhiteSpace(nuevaContrasena))
+                cmd.Parameters.AddWithValue("@Contrasena", nuevaContrasena);
+
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        public async Task EliminarGuardiaAsync(int id)
+        {
+            using var conn = new SqlConnection(ConnectionString);
+            await conn.OpenAsync();
+
+            const string query = @"
+                UPDATE TBL_ROCLAND_SECURITY_USUARIOS
+                SET Activo = 0
+                WHERE ID = @ID";
+
+            using var cmd = new SqlCommand(query, conn);
+            cmd.Parameters.AddWithValue("@ID", id);
+            await cmd.ExecuteNonQueryAsync();
+        }
+
     }
 }

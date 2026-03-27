@@ -29,9 +29,7 @@
         ─────────────────────────────────────────────────────────────────
     -->
 
-    <!-- ══════════════════════════════════════════════════════════
-         TAB BAR — GUARDIA
-    ══════════════════════════════════════════════════════════ -->
+    <!-- TAB BAR — GUARDIA -->
     <TabBar x:Name="TabBarGuardia" Route="guardia">
 
         <Tab Title="Rondines" Icon="tab_rondin.png" Route="home">
@@ -60,9 +58,7 @@
 
     </TabBar>
 
-    <!-- ══════════════════════════════════════════════════════════
-         TAB BAR — SUPERVISOR
-    ══════════════════════════════════════════════════════════ -->
+    <!--  TAB BAR — SUPERVISOR -->
     <TabBar x:Name="TabBarSupervisor" Route="supervisor">
 
         <Tab Title="Panel" Icon="tab_panel.png" Route="panel">
@@ -87,6 +83,14 @@
                 Route="supervisorhistorial"
                 ContentTemplate="{DataTemplate supervisor:SupervisorHistorialPage}"
                 Shell.NavBarIsVisible="False"/>
+        </Tab>
+
+        <Tab Title="Admin" Icon="group.png" Route="admin">
+            <ShellContent
+            Title="Admin"
+            Route="adminusuarios"
+            ContentTemplate="{DataTemplate supervisor:AdminUsuarios}"
+            Shell.NavBarIsVisible="False"/>
         </Tab>
 
         <Tab Title="Perfil" Icon="tab_perfil.png" Route="perfil">

@@ -27,20 +27,20 @@
 
         <!-- Toast flotante -->
         <Frame x:Name="ToastFrame"
-       BackgroundColor="#FF5555"
-       CornerRadius="12"
-       Padding="12,8"
-       IsVisible="False"
-       HorizontalOptions="Center"
-       VerticalOptions="Start"
-       Margin="24,40,24,0"
-       HasShadow="True"
-       Opacity="0">
+           BackgroundColor="#FF5555"
+           CornerRadius="12"
+           Padding="12,8"
+           IsVisible="False"
+           HorizontalOptions="Center"
+           VerticalOptions="Start"
+           Margin="24,40,24,0"
+           HasShadow="True"
+           Opacity="0">
             <Label x:Name="ToastLabel"
-           TextColor="White"
-           FontAttributes="Bold"
-           FontSize="14"
-           HorizontalOptions="Center"/>
+               TextColor="White"
+               FontAttributes="Bold"
+               FontSize="14"
+               HorizontalOptions="Center"/>
         </Frame>
 
         <!-- ═══════════════════════════════════════════════════ -->
