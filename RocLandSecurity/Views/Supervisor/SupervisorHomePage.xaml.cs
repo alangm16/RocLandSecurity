@@ -7,20 +7,22 @@ namespace RocLandSecurity.Views.Supervisor
     {
         private readonly SupervisorDatabaseService _db;
         private readonly SessionService _session;
-        private readonly OfflineDatabaseService _offline;
+        private DateTime _ultimaCarga = DateTime.MinValue;
+        private const int CacheTTLSegundos = 30; // refresca solo si pasaron 30 seg
 
-        public SupervisorHomePage(SupervisorDatabaseService db, SessionService session, OfflineDatabaseService offline)
+        public SupervisorHomePage(SupervisorDatabaseService db, SessionService session)
         {
             InitializeComponent();
             _db = db;
             _session = session;
-            _offline = offline;
         }
 
         protected override async void OnAppearing()
         {
             base.OnAppearing();
-            await CargarDatosAsync();
+            bool necesitaRecargar = (DateTime.Now - _ultimaCarga).TotalSeconds > CacheTTLSegundos;
+            if (necesitaRecargar)
+                await CargarDatosAsync();
         }
 
         // ─────────────────────────────────────────────────────────────────
@@ -99,11 +101,13 @@ namespace RocLandSecurity.Views.Supervisor
                 }
 
                 PanelContenido.IsVisible = true;
+                _ultimaCarga = DateTime.Now;
             }
             catch (Exception ex)
             {
                 await ShowToastAsync($"Error de conexión: {ex.Message}");
             }
+
             finally
             {
                 LoadingIndicator.IsVisible = false;
@@ -135,13 +139,14 @@ namespace RocLandSecurity.Views.Supervisor
             var tap = new TapGestureRecognizer();
             tap.Tapped += async (s, e) =>
             {
-                // Feedback visual breve
                 await card.FadeToAsync(0.6, 80);
                 await card.FadeToAsync(1.0, 80);
 
-                // Navegar a la página de detalle
-                await Navigation.PushModalAsync(
-                    new RondinDetalleSupervisorPage(_db, rondin.ID));
+                // Precarga datos EN PARALELO con la animación de push
+                var paginaDetalle = new RondinDetalleSupervisorPage(_db, rondin.ID);
+                var tareaNavegacion = Navigation.PushModalAsync(paginaDetalle);
+                // No esperamos los datos aquí — la página los carga internamente
+                await tareaNavegacion;
             };
             card.GestureRecognizers.Add(tap);
             // ─────────────────────────────────────────────────────────────────────

@@ -7,7 +7,7 @@ namespace RocLandSecurity.Views.Supervisor
     {
         private readonly SupervisorDatabaseService _db;
         private readonly SessionService  _session;
-        private readonly OfflineDatabaseService _offline;
+        private DateTime _ultimaCargaFechas = DateTime.MinValue;
 
         private DateTime       _fechaActual       = DateTime.Today;
         private DateTime       _fechaSeleccionada = DateTime.Today;
@@ -15,12 +15,11 @@ namespace RocLandSecurity.Views.Supervisor
 
         private bool _cargandoHistorial = false;
 
-        public SupervisorHistorialPage(SupervisorDatabaseService db, SessionService session, OfflineDatabaseService offline)
+        public SupervisorHistorialPage(SupervisorDatabaseService db, SessionService session)
         {
             InitializeComponent();
             _db      = db;
             _session = session;
-            _offline = offline;
         }
 
         protected override async void OnAppearing()
@@ -38,13 +37,16 @@ namespace RocLandSecurity.Views.Supervisor
         {
             try
             {
-                _fechasConActividad = await _db.GetFechasConActividadAsync();
-                ActualizarCalendario();
+                // Solo ir a BD si el caché expiró (5 minutos)
+                bool necesitaRecargar = (DateTime.Now - _ultimaCargaFechas).TotalMinutes > 5;
+                if (necesitaRecargar || !_fechasConActividad.Any())
+                {
+                    _fechasConActividad = await _db.GetFechasConActividadAsync();
+                    _ultimaCargaFechas = DateTime.Now;
+                }
+                ActualizarCalendario(); // esto es puro C# local, ya era rápido
             }
-            catch (Exception ex)
-            {
-                await ShowToastAsync($"Error cargando calendario: {ex.Message}");
-            }
+            catch (Exception ex) { await ShowToastAsync($"Error: {ex.Message}"); }
         }
 
         private void ActualizarCalendario()

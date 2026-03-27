@@ -15,6 +15,7 @@ namespace RocLandSecurity.Views.Supervisor
         private readonly int _rondinPuntoID;
         private readonly int _incidenciaID;
         private readonly string _titulo;
+        private static readonly Dictionary<string, byte[]> _fotoCache = new();
 
         // Constructor original — foto de punto de rondín
         public FotoEvidenciaSupervisorPage(SupervisorDatabaseService db, int rondinPuntoID)
@@ -40,39 +41,67 @@ namespace RocLandSecurity.Views.Supervisor
         {
             base.OnAppearing();
 
-            TituloFoto.Text = _titulo;
+            Task.Run(CargarFotoAsync);
+        }
 
-            LoadingIndicator.IsVisible = true;
-            LoadingIndicator.IsRunning = true;
-            ImgEvidencia.IsVisible = false;
-            LblEstado.IsVisible = false;
+        public async Task CargarFotoAsync ()
+        {
+            string cacheKey = _incidenciaID > 0 ? $"inc_{_incidenciaID}" : $"punto_{_rondinPuntoID}";
+
+            // Actualiza UI desde el hilo principal
+            MainThread.BeginInvokeOnMainThread(() =>
+            {
+                TituloFoto.Text = _titulo;
+                LoadingIndicator.IsVisible = true;
+                LoadingIndicator.IsRunning = true;
+                ImgEvidencia.IsVisible = false;
+                LblEstado.IsVisible = false;
+            });
 
             try
             {
-                byte[]? fotoBytes = _incidenciaID > 0
-                    ? await _db.GetFotoIncidenciaAsync(_incidenciaID)
-                    : await _db.GetFotoPuntoAsync(_rondinPuntoID);
+                byte[]? fotoBytes;
 
-                LoadingIndicator.IsRunning = false;
-                LoadingIndicator.IsVisible = false;
-
-                if (fotoBytes != null && fotoBytes.Length > 0)
-                {
-                    ImgEvidencia.Source = ImageSource.FromStream(() => new MemoryStream(fotoBytes));
-                    ImgEvidencia.IsVisible = true;
-                }
+                // ¿Ya la tenemos en caché?
+                if (_fotoCache.TryGetValue(cacheKey, out var cached))
+                    fotoBytes = cached;
                 else
                 {
-                    LblEstado.Text = "No hay foto registrada\npara esta incidencia.";
-                    LblEstado.IsVisible = true;
+                    fotoBytes = _incidenciaID > 0
+                        ? await _db.GetFotoIncidenciaAsync(_incidenciaID)
+                        : await _db.GetFotoPuntoAsync(_rondinPuntoID);
+
+                    if (fotoBytes != null && fotoBytes.Length > 0)
+                        _fotoCache[cacheKey] = fotoBytes; // guarda para la próxima vez
                 }
+
+                MainThread.BeginInvokeOnMainThread(() =>
+                {
+                    LoadingIndicator.IsRunning = false;
+                    LoadingIndicator.IsVisible = false;
+
+                    if (fotoBytes != null && fotoBytes.Length > 0)
+                    {
+                        ImgEvidencia.Source = ImageSource.FromStream(
+                            () => new System.IO.MemoryStream(fotoBytes));
+                        ImgEvidencia.IsVisible = true;
+                    }
+                    else
+                    {
+                        LblEstado.Text = "No hay foto registrada.";
+                        LblEstado.IsVisible = true;
+                    }
+                });
             }
             catch (Exception ex)
             {
-                LoadingIndicator.IsRunning = false;
-                LoadingIndicator.IsVisible = false;
-                LblEstado.Text = $"No se pudo cargar la foto:\n{ex.Message}";
-                LblEstado.IsVisible = true;
+                MainThread.BeginInvokeOnMainThread(() =>
+                {
+                    LoadingIndicator.IsRunning = false;
+                    LoadingIndicator.IsVisible = false;
+                    LblEstado.Text = $"Error: {ex.Message}";
+                    LblEstado.IsVisible = true;
+                });
             }
         }
 

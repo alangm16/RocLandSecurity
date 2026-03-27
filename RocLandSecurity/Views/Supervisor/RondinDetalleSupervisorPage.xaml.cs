@@ -11,14 +11,14 @@ namespace RocLandSecurity.Views.Supervisor
     {
         private readonly SupervisorDatabaseService _db;
         private readonly int _rondinID;
+        private Task<DetalleRondinSupervisor?>? _tareaPreCarga;
 
-        // OfflineDatabaseService eliminado: el supervisor opera siempre
-        // con conexión directa a SQL Server. No usa SQLite local.
         public RondinDetalleSupervisorPage(SupervisorDatabaseService db, int rondinID)
         {
             InitializeComponent();
             _db = db;
             _rondinID = rondinID;
+            _tareaPreCarga = _db.GetDetalleRondinSupervisorAsync(_rondinID);
         }
 
         protected override async void OnAppearing()
@@ -38,7 +38,8 @@ namespace RocLandSecurity.Views.Supervisor
 
             try
             {
-                var detalle = await _db.GetDetalleRondinSupervisorAsync(_rondinID);
+                var detalle = await (_tareaPreCarga
+                    ?? _db.GetDetalleRondinSupervisorAsync(_rondinID));
 
                 if (detalle == null)
                 {

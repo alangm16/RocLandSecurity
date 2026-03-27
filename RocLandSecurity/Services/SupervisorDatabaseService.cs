@@ -91,43 +91,43 @@ namespace RocLandSecurity.Services
         }
 
         public async Task<(int Completados, int EnProgreso, int Pendientes, int Incidencias)>
-            GetMetricasTurnoActivoAsync()
+    GetMetricasTurnoActivoAsync()
         {
             using var conn = new SqlConnection(ConnectionString);
             await conn.OpenAsync();
 
-            const string qRondines = @"
-                SELECT
-                    SUM(CASE WHEN r.Estado = 2 THEN 1 ELSE 0 END),
-                    SUM(CASE WHEN r.Estado = 1 THEN 1 ELSE 0 END),
-                    SUM(CASE WHEN r.Estado = 0 THEN 1 ELSE 0 END)
-                FROM TBL_ROCLAND_SECURITY_RONDINES r
-                INNER JOIN TBL_ROCLAND_SECURITY_TURNOS t ON r.TurnoID = t.ID
-                WHERE t.Fecha = CAST(GETDATE() AS DATE)";
+            // Todo en un solo roundtrip con UNION
+            const string q = @"
+        SELECT 'rondines' AS tipo,
+            SUM(CASE WHEN r.Estado = 2 THEN 1 ELSE 0 END) AS completados,
+            SUM(CASE WHEN r.Estado = 1 THEN 1 ELSE 0 END) AS en_progreso,
+            SUM(CASE WHEN r.Estado = 0 THEN 1 ELSE 0 END) AS pendientes,
+            0 AS incidencias
+        FROM TBL_ROCLAND_SECURITY_RONDINES r
+        INNER JOIN TBL_ROCLAND_SECURITY_TURNOS t ON r.TurnoID = t.ID
+        WHERE t.Fecha = CAST(GETDATE() AS DATE)
+        UNION ALL
+        SELECT 'incidencias', 0, 0, 0,
+            COUNT(*)
+        FROM TBL_ROCLAND_SECURITY_INCIDENCIAS i
+        WHERE i.TurnoID IN (
+            SELECT ID FROM TBL_ROCLAND_SECURITY_TURNOS
+            WHERE Fecha = CAST(GETDATE() AS DATE)
+        )";
 
-            int completados = 0, enProgreso = 0, pendientes = 0;
-            using var cmdR = new SqlCommand(qRondines, conn);
-            using (var reader = await cmdR.ExecuteReaderAsync())
+            int completados = 0, enProgreso = 0, pendientes = 0, incidencias = 0;
+            using var cmd = new SqlCommand(q, conn);
+            using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
             {
-                if (await reader.ReadAsync())
+                if (reader.GetString(0) == "rondines")
                 {
-                    completados = reader.IsDBNull(0) ? 0 : reader.GetInt32(0);
-                    enProgreso = reader.IsDBNull(1) ? 0 : reader.GetInt32(1);
-                    pendientes = reader.IsDBNull(2) ? 0 : reader.GetInt32(2);
+                    completados = reader.IsDBNull(1) ? 0 : reader.GetInt32(1);
+                    enProgreso = reader.IsDBNull(2) ? 0 : reader.GetInt32(2);
+                    pendientes = reader.IsDBNull(3) ? 0 : reader.GetInt32(3);
                 }
+                else incidencias = reader.GetInt32(4);
             }
-
-            const string qIncidencias = @"
-                SELECT COUNT(*)
-                FROM TBL_ROCLAND_SECURITY_INCIDENCIAS i
-                WHERE i.TurnoID IN (
-                    SELECT ID FROM TBL_ROCLAND_SECURITY_TURNOS
-                    WHERE Fecha = CAST(GETDATE() AS DATE)
-                )";
-            using var cmdI = new SqlCommand(qIncidencias, conn);
-            var result = await cmdI.ExecuteScalarAsync();
-            int incidencias = result == DBNull.Value ? 0 : Convert.ToInt32(result);
-
             return (completados, enProgreso, pendientes, incidencias);
         }
 
@@ -327,121 +327,165 @@ namespace RocLandSecurity.Services
 
         public async Task<HistorialSupervisorDia> GetHistorialPorFechaAsync(DateTime fecha)
         {
-            // — sin cambios respecto al original —
-            // (cuerpo idéntico al DatabaseService original)
             var resultado = new HistorialSupervisorDia { Fecha = fecha.Date };
             using var conn = new SqlConnection(ConnectionString);
             await conn.OpenAsync();
 
-            const string queryTurnos = @"
-                SELECT t.ID, t.GuardiaID, t.HoraInicio, t.HoraFin, u.Nombre AS NombreGuardia
-                FROM TBL_ROCLAND_SECURITY_TURNOS t
-                INNER JOIN TBL_ROCLAND_SECURITY_USUARIOS u ON t.GuardiaID = u.ID
-                WHERE t.Fecha = @fecha
-                ORDER BY t.HoraInicio";
-            using var cmdTurnos = new SqlCommand(queryTurnos, conn);
-            cmdTurnos.Parameters.AddWithValue("@fecha", fecha.Date);
+            // ── 1. Turnos + rondines en UN solo query ───────────────────────────
+            const string qTodoEnUno = @"
+        SELECT
+            t.ID         AS TurnoID,
+            t.GuardiaID,
+            t.HoraInicio AS TurnoHoraInicio,
+            t.HoraFin    AS TurnoHoraFin,
+            u.Nombre     AS NombreGuardia,
+            r.ID         AS RondinID,
+            r.HoraProgramada,
+            r.HoraInicio AS RondinHoraInicio,
+            r.HoraFin    AS RondinHoraFin,
+            r.Estado     AS RondinEstado,
+            (SELECT COUNT(*) FROM TBL_ROCLAND_SECURITY_RONDINESPUNTOS rp
+             WHERE rp.RondinID = r.ID AND rp.Estado = 1) AS PuntosVisitados,
+            (SELECT COUNT(*) FROM TBL_ROCLAND_SECURITY_RONDINESPUNTOS rp
+             WHERE rp.RondinID = r.ID)                   AS PuntosTotal,
+            (SELECT COUNT(*) FROM TBL_ROCLAND_SECURITY_INCIDENCIAS i
+             WHERE i.RondinID = r.ID)                    AS IncidenciasCount
+        FROM TBL_ROCLAND_SECURITY_TURNOS t
+        INNER JOIN TBL_ROCLAND_SECURITY_USUARIOS u ON t.GuardiaID = u.ID
+        LEFT  JOIN TBL_ROCLAND_SECURITY_RONDINES r ON r.TurnoID = t.ID
+        WHERE t.Fecha = @fecha
+        ORDER BY t.ID, r.HoraProgramada";
 
-            var turnos = new List<HistorialTurnoDia>();
-            using (var reader = await cmdTurnos.ExecuteReaderAsync())
-                while (await reader.ReadAsync())
-                    turnos.Add(new HistorialTurnoDia
-                    {
-                        TurnoID = reader.GetInt32(0),
-                        GuardiaID = reader.GetInt32(1),
-                        HoraInicio = TimeOnly.FromTimeSpan(reader.GetTimeSpan(2)),
-                        HoraFin = TimeOnly.FromTimeSpan(reader.GetTimeSpan(3)),
-                        NombreGuardia = reader.GetString(4)
-                    });
-
-            foreach (var turno in turnos)
+            var turnosDict = new Dictionary<int, HistorialTurnoDia>();
+            using (var cmd = new SqlCommand(qTodoEnUno, conn))
             {
-                const string queryRondines = @"
-                    SELECT r.ID, r.HoraProgramada, r.HoraInicio, r.HoraFin, r.Estado,
-                        (SELECT COUNT(*) FROM TBL_ROCLAND_SECURITY_RONDINESPUNTOS rp
-                         WHERE rp.RondinID = r.ID AND rp.Estado = 1) AS PuntosVisitados,
-                        (SELECT COUNT(*) FROM TBL_ROCLAND_SECURITY_RONDINESPUNTOS rp
-                         WHERE rp.RondinID = r.ID) AS PuntosTotal,
-                        (SELECT COUNT(*) FROM TBL_ROCLAND_SECURITY_INCIDENCIAS i
-                         WHERE i.RondinID = r.ID) AS IncidenciasCount
-                    FROM TBL_ROCLAND_SECURITY_RONDINES r
-                    WHERE r.TurnoID = @turnoID
-                    ORDER BY r.HoraProgramada";
-                using var cmdRondines = new SqlCommand(queryRondines, conn);
-                cmdRondines.Parameters.AddWithValue("@turnoID", turno.TurnoID);
-                using (var reader = await cmdRondines.ExecuteReaderAsync())
-                    while (await reader.ReadAsync())
+                cmd.Parameters.AddWithValue("@fecha", fecha.Date);
+                using var reader = await cmd.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                {
+                    int turnoID = reader.GetInt32(0);
+                    if (!turnosDict.TryGetValue(turnoID, out var turno))
+                    {
+                        turno = new HistorialTurnoDia
+                        {
+                            TurnoID = turnoID,
+                            GuardiaID = reader.GetInt32(1),
+                            HoraInicio = TimeOnly.FromTimeSpan(reader.GetTimeSpan(2)),
+                            HoraFin = TimeOnly.FromTimeSpan(reader.GetTimeSpan(3)),
+                            NombreGuardia = reader.GetString(4)
+                        };
+                        turnosDict[turnoID] = turno;
+                    }
+                    if (!reader.IsDBNull(5)) // Puede no haber rondines
+                    {
                         turno.Rondines.Add(new HistorialRondinDia
                         {
-                            ID = reader.GetInt32(0),
-                            HoraProgramada = reader.GetDateTime(1),
-                            HoraInicio = reader.IsDBNull(2) ? null : reader.GetDateTime(2),
-                            HoraFin = reader.IsDBNull(3) ? null : reader.GetDateTime(3),
-                            Estado = reader.GetInt32(4),
-                            PuntosVisitados = reader.GetInt32(5),
-                            PuntosTotal = reader.GetInt32(6),
-                            IncidenciasCount = reader.GetInt32(7)
+                            ID = reader.GetInt32(5),
+                            HoraProgramada = reader.GetDateTime(6),
+                            HoraInicio = reader.IsDBNull(7) ? null : reader.GetDateTime(7),
+                            HoraFin = reader.IsDBNull(8) ? null : reader.GetDateTime(8),
+                            Estado = reader.GetInt32(9),
+                            PuntosVisitados = reader.GetInt32(10),
+                            PuntosTotal = reader.GetInt32(11),
+                            IncidenciasCount = reader.GetInt32(12)
                         });
+                    }
+                }
+            }
 
-                foreach (var rondin in turno.Rondines.Where(r => r.TieneIncidencias))
+            // ── 2. Incidencias de TODOS los rondines con incidencias en 1 query ─
+            var rondinIds = turnosDict.Values
+                .SelectMany(t => t.Rondines)
+                .Where(r => r.TieneIncidencias)
+                .Select(r => r.ID)
+                .ToList();
+
+            if (rondinIds.Any())
+            {
+                var parametros = string.Join(",", rondinIds.Select((_, i) => $"@r{i}"));
+                var qInc = $@"
+            SELECT i.RondinID, i.ID, i.Descripcion, i.FechaReporte,
+                   ISNULL(pc.Nombre,'') AS NombrePunto, i.Estado, i.NotaResolucion
+            FROM TBL_ROCLAND_SECURITY_INCIDENCIAS i
+            LEFT JOIN TBL_ROCLAND_SECURITY_PUNTOSCONTROL pc ON i.PuntoID = pc.ID
+            WHERE i.RondinID IN ({parametros})
+            ORDER BY i.RondinID, i.FechaReporte";
+
+                using var cmdInc = new SqlCommand(qInc, conn);
+                for (int i = 0; i < rondinIds.Count; i++)
+                    cmdInc.Parameters.AddWithValue($"@r{i}", rondinIds[i]);
+
+                var incByRondin = turnosDict.Values
+                    .SelectMany(t => t.Rondines)
+                    .ToDictionary(r => r.ID);
+
+                using var reader = await cmdInc.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
                 {
-                    const string qIncRondin = @"
-                        SELECT i.ID, i.Descripcion, i.FechaReporte,
-                               ISNULL(pc.Nombre, '') AS NombrePunto, i.Estado, i.NotaResolucion
-                        FROM TBL_ROCLAND_SECURITY_INCIDENCIAS i
-                        LEFT JOIN TBL_ROCLAND_SECURITY_PUNTOSCONTROL pc ON i.PuntoID = pc.ID
-                        WHERE i.RondinID = @rID ORDER BY i.FechaReporte";
-                    using var cmdRI = new SqlCommand(qIncRondin, conn);
-                    cmdRI.Parameters.AddWithValue("@rID", rondin.ID);
-                    using var riReader = await cmdRI.ExecuteReaderAsync();
-                    while (await riReader.ReadAsync())
+                    int rId = reader.GetInt32(0);
+                    if (incByRondin.TryGetValue(rId, out var rondin))
                         rondin.Incidencias.Add(new IncidenciaSupervisorItem
                         {
-                            ID = riReader.GetInt32(0),
-                            Descripcion = riReader.GetString(1),
-                            FechaReporte = riReader.GetDateTime(2),
-                            NombrePunto = riReader.GetString(3),
-                            Estado = riReader.GetInt32(4),
-                            NotaResolucion = riReader.IsDBNull(5) ? null : riReader.GetString(5),
+                            ID = reader.GetInt32(1),
+                            Descripcion = reader.GetString(2),
+                            FechaReporte = reader.GetDateTime(3),
+                            NombrePunto = reader.GetString(4),
+                            Estado = reader.GetInt32(5),
+                            NotaResolucion = reader.IsDBNull(6) ? null : reader.GetString(6),
                         });
                 }
+            }
 
-                const string queryIncidencias = @"
-                    SELECT i.ID, i.TurnoID, i.RondinID, i.PuntoID, i.GuardiaReportaID,
-                           i.Descripcion, i.FechaReporte, i.Estado,
-                           i.NotaResolucion, i.FechaResolucion, i.SupervisorResuelveID,
-                           ISNULL(u.Nombre, 'Desconocido') AS NombreGuardia,
-                           ISNULL(pc.Nombre, '')            AS NombrePunto,
-                           pc.Orden                         AS OrdenPunto
-                    FROM TBL_ROCLAND_SECURITY_INCIDENCIAS i
-                    INNER JOIN TBL_ROCLAND_SECURITY_USUARIOS u ON i.GuardiaReportaID = u.ID
-                    LEFT  JOIN TBL_ROCLAND_SECURITY_PUNTOSCONTROL pc ON i.PuntoID = pc.ID
-                    WHERE i.TurnoID = @turnoID AND i.RondinID IS NULL
-                    ORDER BY i.FechaReporte DESC";
-                using var cmdInc = new SqlCommand(queryIncidencias, conn);
-                cmdInc.Parameters.AddWithValue("@turnoID", turno.TurnoID);
-                using (var reader = await cmdInc.ExecuteReaderAsync())
-                    while (await reader.ReadAsync())
+            // ── 3. Incidencias sin rondín (del turno directo) ────────────────────
+            var turnoIds = turnosDict.Keys.ToList();
+            if (turnoIds.Any())
+            {
+                var parametros = string.Join(",", turnoIds.Select((_, i) => $"@t{i}"));
+                var qIncTurno = $@"
+            SELECT i.TurnoID, i.ID, i.TurnoID AS tID, i.RondinID, i.PuntoID,
+                   i.GuardiaReportaID, i.Descripcion, i.FechaReporte, i.Estado,
+                   i.NotaResolucion, i.FechaResolucion, i.SupervisorResuelveID,
+                   ISNULL(u.Nombre,'Desconocido') AS NombreGuardia,
+                   ISNULL(pc.Nombre,'')           AS NombrePunto,
+                   pc.Orden                       AS OrdenPunto
+            FROM TBL_ROCLAND_SECURITY_INCIDENCIAS i
+            INNER JOIN TBL_ROCLAND_SECURITY_USUARIOS u ON i.GuardiaReportaID = u.ID
+            LEFT  JOIN TBL_ROCLAND_SECURITY_PUNTOSCONTROL pc ON i.PuntoID = pc.ID
+            WHERE i.TurnoID IN ({parametros}) AND i.RondinID IS NULL
+            ORDER BY i.FechaReporte DESC";
+
+                using var cmdIT = new SqlCommand(qIncTurno, conn);
+                for (int i = 0; i < turnoIds.Count; i++)
+                    cmdIT.Parameters.AddWithValue($"@t{i}", turnoIds[i]);
+
+                using var reader = await cmdIT.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                {
+                    int turnoID = reader.GetInt32(0);
+                    if (turnosDict.TryGetValue(turnoID, out var turno))
                         turno.Incidencias.Add(new IncidenciaSupervisorItem
                         {
-                            ID = reader.GetInt32(0),
-                            TurnoID = reader.GetInt32(1),
-                            RondinID = reader.IsDBNull(2) ? null : reader.GetInt32(2),
-                            PuntoID = reader.IsDBNull(3) ? null : reader.GetInt32(3),
-                            GuardiaReportaID = reader.GetInt32(4),
-                            Descripcion = reader.GetString(5),
-                            FechaReporte = reader.GetDateTime(6),
-                            Estado = reader.GetInt32(7),
-                            NotaResolucion = reader.IsDBNull(8) ? null : reader.GetString(8),
-                            FechaResolucion = reader.IsDBNull(9) ? null : reader.GetDateTime(9),
-                            SupervisorResuelveID = reader.IsDBNull(10) ? null : reader.GetInt32(10),
-                            NombreGuardia = reader.GetString(11),
-                            NombrePunto = reader.GetString(12),
-                            OrdenPunto = reader.IsDBNull(13) ? null : reader.GetInt32(13)
+                            ID = reader.GetInt32(1),
+                            TurnoID = reader.GetInt32(2),
+                            RondinID = reader.IsDBNull(3) ? null : reader.GetInt32(3),
+                            PuntoID = reader.IsDBNull(4) ? null : reader.GetInt32(4),
+                            GuardiaReportaID = reader.GetInt32(5),
+                            Descripcion = reader.GetString(6),
+                            FechaReporte = reader.GetDateTime(7),
+                            Estado = reader.GetInt32(8),
+                            NotaResolucion = reader.IsDBNull(9) ? null : reader.GetString(9),
+                            FechaResolucion = reader.IsDBNull(10) ? null : reader.GetDateTime(10),
+                            SupervisorResuelveID = reader.IsDBNull(11) ? null : reader.GetInt32(11),
+                            NombreGuardia = reader.GetString(12),
+                            NombrePunto = reader.GetString(13),
+                            OrdenPunto = reader.IsDBNull(14) ? null : reader.GetInt32(14)
                         });
-
-                resultado.Turnos.Add(turno);
+                }
             }
+
+            foreach (var t in turnosDict.Values.OrderBy(t => t.HoraInicio))
+                resultado.Turnos.Add(t);
+
             return resultado;
         }
 
