@@ -219,23 +219,31 @@
 
                                             </VerticalStackLayout>
 
-                                            <!-- Botón Editar -->
-                                            <ImageButton Grid.Column="2"
-                                                         Source="edit.png"
-                                                         BackgroundColor="Transparent"
-                                                         WidthRequest="22" HeightRequest="22"
-                                                         VerticalOptions="Center"
-                                                         CommandParameter="{Binding .}"
-                                                         Clicked="OnEditarUsuario"/>
+											<!-- Botón Editar -->
+											<Image Grid.Column="2"
+												   Source="edit.png"
+												   BackgroundColor="Transparent"
+												   WidthRequest="26" HeightRequest="26"
+												   Aspect="AspectFit"
+												   VerticalOptions="Center"
+												   BindingContext="{Binding .}">
+												<Image.GestureRecognizers>
+													<TapGestureRecognizer Tapped="OnEditarUsuario"/>
+												</Image.GestureRecognizers>
+											</Image>
 
-                                            <!-- Botón Eliminar -->
-                                            <ImageButton Grid.Column="3"
-                                                         Source="delete.png"
-                                                         BackgroundColor="Transparent"
-                                                         WidthRequest="22" HeightRequest="22"
-                                                         VerticalOptions="Center"
-                                                         CommandParameter="{Binding .}"
-                                                         Clicked="OnEliminarUsuario"/>
+											<!-- Botón Eliminar -->
+											<Image Grid.Column="3"
+												   Source="delete.png"
+												   BackgroundColor="Transparent"
+												   WidthRequest="26" HeightRequest="26"
+												   Aspect="AspectFit"
+												   VerticalOptions="Center"
+												   BindingContext="{Binding .}">
+												<Image.GestureRecognizers>
+													<TapGestureRecognizer Tapped="OnEliminarUsuario"/>
+												</Image.GestureRecognizers>
+											</Image>
                                         </Grid>
                                     </Border>
                                 </Grid>

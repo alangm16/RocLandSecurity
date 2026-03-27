@@ -160,18 +160,19 @@ namespace RocLandSecurity.Views.Supervisor
 
         private void OnEditarUsuario(object sender, EventArgs e)
         {
-            if (sender is not ImageButton btn || btn.CommandParameter is not Usuario usuario)
-                return;
+            if (sender is Image img && img.BindingContext is Usuario usuario)
+            {
+                _usuarioSeleccionado = usuario;
 
-            _usuarioSeleccionado = usuario;
+                EntryEditarNombre.Text = usuario.Nombre;
+                EntryEditarUsuario.Text = usuario.UsuarioLogin;
+                EntryEditarContrasena.Text = string.Empty;
+                EntryEditarQR.Text = usuario.QRCode ?? string.Empty;
 
-            EntryEditarNombre.Text = usuario.Nombre;
-            EntryEditarUsuario.Text = usuario.UsuarioLogin;
-            EntryEditarContrasena.Text = string.Empty;
-            EntryEditarQR.Text = usuario.QRCode ?? string.Empty;
-
-            AbrirModal(ModalEditar);
+                AbrirModal(ModalEditar);
+            }
         }
+
 
         private async void OnConfirmarEditar(object sender, EventArgs e)
         {
@@ -231,14 +232,13 @@ namespace RocLandSecurity.Views.Supervisor
 
         private void OnEliminarUsuario(object sender, EventArgs e)
         {
-            if (sender is not ImageButton btn || btn.CommandParameter is not Usuario usuario)
-                return;
-
-            _usuarioSeleccionado = usuario;
-            LblEliminarMensaje.Text =
-                $"¿Estás seguro de eliminar a {usuario.Nombre}? Esta acción no se puede deshacer.";
-
-            AbrirModal(ModalEliminar);
+            if (sender is Image img && img.BindingContext is Usuario usuario)
+            {
+                _usuarioSeleccionado = usuario;
+                LblEliminarMensaje.Text =
+                    $"¿Estás seguro de eliminar a {usuario.Nombre}? Esta acción no se puede deshacer.";
+                AbrirModal(ModalEliminar);
+            }
         }
 
         private async void OnConfirmarEliminar(object sender, EventArgs e)
