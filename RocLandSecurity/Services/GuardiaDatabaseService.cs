@@ -334,24 +334,29 @@ namespace RocLandSecurity.Services
         }
 
         // INCIDENCIAS (guardia crea)
-
         public async Task CrearIncidenciaAsync(Incidencia inc)
         {
             using var conn = new SqlConnection(ConnectionString);
             await conn.OpenAsync();
             const string q = @"
-                INSERT INTO TBL_ROCLAND_SECURITY_INCIDENCIAS
-                    (TurnoID, RondinID, PuntoID, GuardiaReportaID,
-                     Descripcion, FechaReporte, Estado, FechaModificacion)
-                VALUES
-                    (@turnoID, @rondinID, @puntoID, @guardiaID,
-                     @desc, GETDATE(), 0, GETDATE())";
+        INSERT INTO TBL_ROCLAND_SECURITY_INCIDENCIAS
+            (TurnoID, RondinID, PuntoID, GuardiaReportaID,
+             Descripcion, FotoPath, FechaReporte, Estado, FechaModificacion)
+        VALUES
+            (@turnoID, @rondinID, @puntoID, @guardiaID,
+             @desc, @foto, GETDATE(), 0, GETDATE())";
             using var cmd = new SqlCommand(q, conn);
             cmd.Parameters.AddWithValue("@turnoID", inc.TurnoID);
             cmd.Parameters.AddWithValue("@rondinID", (object?)inc.RondinID ?? DBNull.Value);
             cmd.Parameters.AddWithValue("@puntoID", (object?)inc.PuntoID ?? DBNull.Value);
             cmd.Parameters.AddWithValue("@guardiaID", inc.GuardiaReportaID);
             cmd.Parameters.AddWithValue("@desc", inc.Descripcion);
+
+            var fotoParam = cmd.Parameters.Add("@foto", System.Data.SqlDbType.VarBinary);
+            fotoParam.Value = inc.FotoPath != null && inc.FotoPath.Length > 0
+                ? inc.FotoPath
+                : DBNull.Value;
+
             await cmd.ExecuteNonQueryAsync();
         }
 

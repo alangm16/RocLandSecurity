@@ -13,7 +13,7 @@ namespace RocLandSecurity.Models
         public int? PuntoID { get; set; }   // null = incidencia general
         public int GuardiaReportaID { get; set; }
         public string Descripcion { get; set; } = string.Empty;
-        public string? FotoPath { get; set; }
+        public byte[]? FotoPath { get; set; }
         public DateTime FechaReporte { get; set; }
         public int Estado { get; set; }   // 0=Abierta 1=Resuelta
         public int? SupervisorResuelveID { get; set; }

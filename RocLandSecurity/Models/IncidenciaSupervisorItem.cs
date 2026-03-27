@@ -34,6 +34,8 @@
         public string UbicacionStr => string.IsNullOrEmpty(NombrePunto)
             ? "Sin ubicación específica"
             : NombrePunto;
+
+        public bool TieneFoto { get; set; }
     }
 
     /// <summary>

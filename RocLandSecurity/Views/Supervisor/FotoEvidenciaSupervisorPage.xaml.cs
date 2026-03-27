@@ -13,19 +13,35 @@ namespace RocLandSecurity.Views.Supervisor
     {
         private readonly SupervisorDatabaseService _db;
         private readonly int _rondinPuntoID;
+        private readonly int _incidenciaID;
+        private readonly string _titulo;
 
+        // Constructor original — foto de punto de rondín
         public FotoEvidenciaSupervisorPage(SupervisorDatabaseService db, int rondinPuntoID)
         {
             InitializeComponent();
             _db = db;
             _rondinPuntoID = rondinPuntoID;
+            _incidenciaID = 0;
+            _titulo = "Foto de Evidencia";
+        }
+
+        // Constructor nuevo — foto de incidencia
+        public FotoEvidenciaSupervisorPage(SupervisorDatabaseService db, int incidenciaID, bool esIncidencia)
+        {
+            InitializeComponent();
+            _db = db;
+            _rondinPuntoID = 0;
+            _incidenciaID = incidenciaID;
+            _titulo = "Foto de Incidencia";
         }
 
         protected override async void OnAppearing()
         {
             base.OnAppearing();
 
-            // Estado inicial: cargando
+            TituloFoto.Text = _titulo;
+
             LoadingIndicator.IsVisible = true;
             LoadingIndicator.IsRunning = true;
             ImgEvidencia.IsVisible = false;
@@ -33,7 +49,9 @@ namespace RocLandSecurity.Views.Supervisor
 
             try
             {
-                var fotoBytes = await _db.GetFotoPuntoAsync(_rondinPuntoID);
+                byte[]? fotoBytes = _incidenciaID > 0
+                    ? await _db.GetFotoIncidenciaAsync(_incidenciaID)
+                    : await _db.GetFotoPuntoAsync(_rondinPuntoID);
 
                 LoadingIndicator.IsRunning = false;
                 LoadingIndicator.IsVisible = false;
@@ -45,7 +63,7 @@ namespace RocLandSecurity.Views.Supervisor
                 }
                 else
                 {
-                    LblEstado.Text = "No hay foto registrada\npara este punto.";
+                    LblEstado.Text = "No hay foto registrada\npara esta incidencia.";
                     LblEstado.IsVisible = true;
                 }
             }

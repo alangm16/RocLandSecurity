@@ -256,12 +256,12 @@ namespace RocLandSecurity.Services
                 try
                 {
                     const string ins = @"
-                        INSERT INTO TBL_ROCLAND_SECURITY_INCIDENCIAS
-                            (TurnoID, RondinID, PuntoID, GuardiaReportaID,
-                             Descripcion, FechaReporte, Estado, Sincronizado, FechaModificacion)
-                        OUTPUT INSERTED.ID
-                        VALUES (@turnoID, @rondinID, @puntoID, @guardiaID,
-                                @desc, @fecha, @estado, 1, @fechaMod)";
+                INSERT INTO TBL_ROCLAND_SECURITY_INCIDENCIAS
+                    (TurnoID, RondinID, PuntoID, GuardiaReportaID,
+                     Descripcion, FotoPath, FechaReporte, Estado, Sincronizado, FechaModificacion)
+                OUTPUT INSERTED.ID
+                VALUES (@turnoID, @rondinID, @puntoID, @guardiaID,
+                        @desc, @foto, @fecha, @estado, 1, @fechaMod)";
 
                     using var cmd = new SqlCommand(ins, conn);
                     cmd.Parameters.AddWithValue("@turnoID", inc.TurnoID);
@@ -272,6 +272,13 @@ namespace RocLandSecurity.Services
                     cmd.Parameters.AddWithValue("@fecha", inc.FechaReporte);
                     cmd.Parameters.AddWithValue("@estado", inc.Estado);
                     cmd.Parameters.AddWithValue("@fechaMod", inc.FechaModificacion);
+
+                    // ── FotoPath ──────────────────────────────────────────────────
+                    var fotoParam = cmd.Parameters.Add("@foto", System.Data.SqlDbType.VarBinary);
+                    fotoParam.Value = inc.FotoPath != null && inc.FotoPath.Length > 0
+                        ? inc.FotoPath
+                        : DBNull.Value;
+                    // ─────────────────────────────────────────────────────────────
 
                     int serverID = (int)(await cmd.ExecuteScalarAsync() ?? 0);
                     await _local.MarcarIncidenciaSincronizadaAsync(inc.LocalID, serverID);

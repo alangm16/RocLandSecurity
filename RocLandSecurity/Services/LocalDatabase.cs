@@ -342,6 +342,7 @@ namespace RocLandSecurity.Services
         public int? PuntoID { get; set; }
         public int GuardiaReportaID { get; set; }
         public string Descripcion { get; set; } = string.Empty;
+        public byte[]? FotoPath { get; set; }
         public DateTime FechaReporte { get; set; }
         public int Estado { get; set; } = 0;
         public bool Sincronizado { get; set; } = false;

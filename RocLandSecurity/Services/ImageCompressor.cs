@@ -8,6 +8,11 @@ namespace RocLandSecurity.Services
         private const int MaxHeight = 960;
         private const int JpegQuality = 78;   // 0-100, 78 = buen balance calidad/tamaño
 
+        // Calidad alta para incidencias (~1.2–1.5 MB esperado)
+        private const int MaxWidthAlta = 1920;
+        private const int MaxHeightAlta = 1440;
+        private const int JpegQualityAlta = 85;
+
         /// Redimensiona y recomprime una foto a JPEG optimizado.
         /// Mantiene la proporción original, nunca upscale.
         public static byte[] ComprimirFoto(byte[] original)
@@ -43,6 +48,40 @@ namespace RocLandSecurity.Services
             using var image = SKImage.FromBitmap(resized);
             using var output = new MemoryStream();
             image.Encode(SKEncodedImageFormat.Jpeg, JpegQuality).SaveTo(output);
+
+            return output.ToArray();
+        }
+
+        public static byte[] ComprimirFotoAlta(byte[] original)
+        {
+            using var inputStream = new MemoryStream(original);
+            using var skStream = new SKManagedStream(inputStream);
+            using var codec = SKCodec.Create(skStream);
+
+            if (codec == null) return original;
+
+            var orientacion = codec.EncodedOrigin;
+            using var skBitmap = SKBitmap.Decode(codec);
+            if (skBitmap == null) return original;
+
+            using var bitmapOrientado = AplicarOrientacion(skBitmap, orientacion);
+
+            int w = bitmapOrientado.Width;
+            int h = bitmapOrientado.Height;
+
+            if (w > MaxWidthAlta || h > MaxHeightAlta)
+            {
+                double ratio = Math.Min((double)MaxWidthAlta / w, (double)MaxHeightAlta / h);
+                w = (int)(w * ratio);
+                h = (int)(h * ratio);
+            }
+
+            using var resized = bitmapOrientado.Resize(new SKImageInfo(w, h), SKFilterQuality.High);
+            if (resized == null) return original;
+
+            using var image = SKImage.FromBitmap(resized);
+            using var output = new MemoryStream();
+            image.Encode(SKEncodedImageFormat.Jpeg, JpegQualityAlta).SaveTo(output);
 
             return output.ToArray();
         }

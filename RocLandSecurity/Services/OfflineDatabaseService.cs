@@ -512,7 +512,6 @@ namespace RocLandSecurity.Services
 
         public async Task CrearIncidenciaAsync(Incidencia inc)
         {
-            // Siempre guardar en local
             var localInc = new IncidenciaLocal
             {
                 TurnoID = inc.TurnoID,
@@ -520,6 +519,7 @@ namespace RocLandSecurity.Services
                 PuntoID = inc.PuntoID,
                 GuardiaReportaID = inc.GuardiaReportaID,
                 Descripcion = inc.Descripcion,
+                FotoPath = inc.FotoPath,  
                 FechaReporte = inc.FechaReporte,
                 Estado = 0,
                 Sincronizado = false,
@@ -527,7 +527,6 @@ namespace RocLandSecurity.Services
             };
             await _local.InsertIncidenciaAsync(localInc);
 
-            // Intentar servidor
             if (await _connectivity.CheckServerAsync())
             {
                 try
@@ -538,7 +537,6 @@ namespace RocLandSecurity.Services
                 catch { }
             }
         }
-
 
         /// Obtiene el catálogo de puntos de control.
         /// Online: del servidor (más actualizado).

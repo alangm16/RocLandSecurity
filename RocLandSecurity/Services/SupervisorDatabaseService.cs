@@ -139,18 +139,18 @@ namespace RocLandSecurity.Services
             await conn.OpenAsync();
 
             const string qRondin = @"
-                SELECT
-                    r.ID, r.TurnoID, r.HoraProgramada, r.HoraInicio, r.HoraFin, r.Estado,
-                    u.Nombre AS NombreGuardia,
-                    (SELECT COUNT(*) FROM TBL_ROCLAND_SECURITY_RONDINESPUNTOS
-                     WHERE RondinID = r.ID AND Estado = 1) AS PuntosVisitados,
-                    (SELECT COUNT(*) FROM TBL_ROCLAND_SECURITY_RONDINESPUNTOS
-                     WHERE RondinID = r.ID)                AS PuntosTotal,
-                    (SELECT COUNT(*) FROM TBL_ROCLAND_SECURITY_INCIDENCIAS
-                     WHERE RondinID = r.ID)                AS TotalIncidencias
-                FROM TBL_ROCLAND_SECURITY_RONDINES r
-                INNER JOIN TBL_ROCLAND_SECURITY_USUARIOS u ON r.GuardiaID = u.ID
-                WHERE r.ID = @rondinID";
+        SELECT
+            r.ID, r.TurnoID, r.HoraProgramada, r.HoraInicio, r.HoraFin, r.Estado,
+            u.Nombre AS NombreGuardia,
+            (SELECT COUNT(*) FROM TBL_ROCLAND_SECURITY_RONDINESPUNTOS
+             WHERE RondinID = r.ID AND Estado = 1) AS PuntosVisitados,
+            (SELECT COUNT(*) FROM TBL_ROCLAND_SECURITY_RONDINESPUNTOS
+             WHERE RondinID = r.ID)                AS PuntosTotal,
+            (SELECT COUNT(*) FROM TBL_ROCLAND_SECURITY_INCIDENCIAS
+             WHERE RondinID = r.ID)                AS TotalIncidencias
+        FROM TBL_ROCLAND_SECURITY_RONDINES r
+        INNER JOIN TBL_ROCLAND_SECURITY_USUARIOS u ON r.GuardiaID = u.ID
+        WHERE r.ID = @rondinID";
 
             using var cmdR = new SqlCommand(qRondin, conn);
             cmdR.Parameters.AddWithValue("@rondinID", rondinID);
@@ -204,16 +204,21 @@ namespace RocLandSecurity.Services
             readerP.Close();
 
             const string qIncidencias = @"
-                SELECT i.ID, i.Descripcion, i.FechaReporte, i.Estado, i.NotaResolucion,
-                       ISNULL(pc.Nombre, '') AS NombrePunto
-                FROM TBL_ROCLAND_SECURITY_INCIDENCIAS i
-                LEFT JOIN TBL_ROCLAND_SECURITY_PUNTOSCONTROL pc ON i.PuntoID = pc.ID
-                WHERE i.RondinID = @rondinID
-                ORDER BY i.FechaReporte";
+        SELECT i.ID, i.Descripcion, i.FechaReporte, i.Estado, i.NotaResolucion,
+               ISNULL(pc.Nombre, '') AS NombrePunto,
+               CASE WHEN i.FotoPath IS NOT NULL AND DATALENGTH(i.FotoPath) > 0
+                    THEN 1 ELSE 0 END AS TieneFoto
+        FROM TBL_ROCLAND_SECURITY_INCIDENCIAS i
+        LEFT JOIN TBL_ROCLAND_SECURITY_PUNTOSCONTROL pc ON i.PuntoID = pc.ID
+        WHERE i.RondinID = @rondinID
+        ORDER BY i.FechaReporte";
+
             using var cmdI = new SqlCommand(qIncidencias, conn);
             cmdI.Parameters.AddWithValue("@rondinID", rondinID);
             using var readerI = await cmdI.ExecuteReaderAsync();
+
             while (await readerI.ReadAsync())
+            {
                 detalle.Incidencias.Add(new IncidenciaResumen
                 {
                     ID = readerI.GetInt32(0),
@@ -221,8 +226,10 @@ namespace RocLandSecurity.Services
                     FechaReporte = readerI.GetDateTime(2),
                     Estado = readerI.GetInt32(3),
                     NotaResolucion = readerI.IsDBNull(4) ? null : readerI.GetString(4),
-                    NombrePunto = readerI.GetString(5)   
+                    NombrePunto = readerI.GetString(5),
+                    TieneFoto = readerI.GetInt32(6) == 1  // ← nuevo
                 });
+            }
 
             return detalle;
         }
@@ -238,6 +245,17 @@ namespace RocLandSecurity.Services
             return result == DBNull.Value ? null : (byte[])result;
         }
 
+        public async Task<byte[]?> GetFotoIncidenciaAsync(int incidenciaID)
+        {
+            using var conn = new SqlConnection(ConnectionString);
+            await conn.OpenAsync();
+            const string q = "SELECT FotoPath FROM TBL_ROCLAND_SECURITY_INCIDENCIAS WHERE ID = @id";
+            using var cmd = new SqlCommand(q, conn);
+            cmd.Parameters.AddWithValue("@id", incidenciaID);
+            var result = await cmd.ExecuteScalarAsync();
+            return result == DBNull.Value || result == null ? null : (byte[])result;
+        }
+
         // INCIDENCIAS (supervisor ve y resuelve)
 
         public async Task<List<IncidenciaSupervisorItem>> GetIncidenciasSemanaAsync()
@@ -245,19 +263,22 @@ namespace RocLandSecurity.Services
             using var conn = new SqlConnection(ConnectionString);
             await conn.OpenAsync();
             const string query = @"
-                SELECT
-                    i.ID, i.TurnoID, i.RondinID, i.PuntoID, i.GuardiaReportaID,
-                    i.Descripcion, i.FechaReporte, i.Estado,
-                    i.NotaResolucion, i.FechaResolucion, i.SupervisorResuelveID,
-                    ISNULL(u.Nombre, 'Desconocido') AS NombreGuardia,
-                    ISNULL(pc.Nombre, '')            AS NombrePunto,
-                    pc.Orden                         AS OrdenPunto
-                FROM TBL_ROCLAND_SECURITY_INCIDENCIAS i
-                INNER JOIN TBL_ROCLAND_SECURITY_USUARIOS u ON i.GuardiaReportaID = u.ID
-                LEFT  JOIN TBL_ROCLAND_SECURITY_PUNTOSCONTROL pc ON i.PuntoID = pc.ID
-                WHERE i.FechaReporte >= DATEADD(DAY, -7, CAST(GETDATE() AS DATE))
-                  AND i.FechaReporte <  DATEADD(DAY,  1, CAST(GETDATE() AS DATE))
-                ORDER BY i.FechaReporte DESC, i.ID DESC";
+        SELECT
+            i.ID, i.TurnoID, i.RondinID, i.PuntoID, i.GuardiaReportaID,
+            i.Descripcion, i.FechaReporte, i.Estado,
+            i.NotaResolucion, i.FechaResolucion, i.SupervisorResuelveID,
+            ISNULL(u.Nombre, 'Desconocido') AS NombreGuardia,
+            ISNULL(pc.Nombre, '')            AS NombrePunto,
+            pc.Orden                         AS OrdenPunto,
+            CASE WHEN i.FotoPath IS NOT NULL
+                  AND DATALENGTH(i.FotoPath) > 0
+                 THEN 1 ELSE 0 END           AS TieneFoto
+        FROM TBL_ROCLAND_SECURITY_INCIDENCIAS i
+        INNER JOIN TBL_ROCLAND_SECURITY_USUARIOS u ON i.GuardiaReportaID = u.ID
+        LEFT  JOIN TBL_ROCLAND_SECURITY_PUNTOSCONTROL pc ON i.PuntoID = pc.ID
+        WHERE i.FechaReporte >= DATEADD(DAY, -7, CAST(GETDATE() AS DATE))
+          AND i.FechaReporte <  DATEADD(DAY,  1, CAST(GETDATE() AS DATE))
+        ORDER BY i.FechaReporte DESC, i.ID DESC";
             using var cmd = new SqlCommand(query, conn);
             using var reader = await cmd.ExecuteReaderAsync();
             var lista = new List<IncidenciaSupervisorItem>();
@@ -277,7 +298,8 @@ namespace RocLandSecurity.Services
                     SupervisorResuelveID = reader.IsDBNull(10) ? null : reader.GetInt32(10),
                     NombreGuardia = reader.GetString(11),
                     NombrePunto = reader.GetString(12),
-                    OrdenPunto = reader.IsDBNull(13) ? null : reader.GetInt32(13)
+                    OrdenPunto = reader.IsDBNull(13) ? null : reader.GetInt32(13),
+                    TieneFoto = reader.GetInt32(14) == 1   // ← nuevo
                 });
             return lista;
         }

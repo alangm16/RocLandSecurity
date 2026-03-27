@@ -177,11 +177,12 @@ namespace RocLandSecurity.Views.Supervisor
             var fila1 = new Grid
             {
                 ColumnDefinitions = new ColumnDefinitionCollection
-                {
-                    new ColumnDefinition { Width = GridLength.Auto },
-                    new ColumnDefinition { Width = GridLength.Star },
-                    new ColumnDefinition { Width = GridLength.Auto }
-                },
+                    {
+                        new ColumnDefinition { Width = GridLength.Auto },  // hora
+                        new ColumnDefinition { Width = GridLength.Star },  // guardia
+                        new ColumnDefinition { Width = GridLength.Auto },  // ícono cámara
+                        new ColumnDefinition { Width = GridLength.Auto }   // badge estado
+                    },
                 ColumnSpacing = 6
             };
 
@@ -205,6 +206,41 @@ namespace RocLandSecurity.Views.Supervisor
             };
             Grid.SetColumn(lblGuardia, 1);
 
+            if (inc.TieneFoto)
+            {
+                var btnFoto = new Border
+                {
+                    BackgroundColor = Color.FromArgb("#252525"),
+                    StrokeThickness = 1,
+                    Stroke = Color.FromArgb("#3A3A3A"),
+                    WidthRequest = 28,
+                    HeightRequest = 28,
+                    VerticalOptions = LayoutOptions.Center,
+                    HorizontalOptions = LayoutOptions.Center
+                };
+                btnFoto.StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle
+                { CornerRadius = new CornerRadius(7) };
+                btnFoto.Content = new Image
+                {
+                    Source = "camera.png",
+                    WidthRequest = 16,
+                    HeightRequest = 16,
+                    HorizontalOptions = LayoutOptions.Center,
+                    VerticalOptions = LayoutOptions.Center
+                };
+                btnFoto.GestureRecognizers.Add(new TapGestureRecognizer
+                {
+                    CommandParameter = inc.ID,
+                    Command = new Command<int>(async (id) =>
+                    {
+                        var visor = new FotoEvidenciaSupervisorPage(_db, id, esIncidencia: true);
+                        await Navigation.PushModalAsync(visor);
+                    })
+                });
+                Grid.SetColumn(btnFoto, 2);
+                fila1.Children.Add(btnFoto);
+            }
+
             var badge = new Border
             {
                 BackgroundColor = estadoBg,
@@ -222,7 +258,7 @@ namespace RocLandSecurity.Views.Supervisor
                 FontSize = 10,
                 FontAttributes = FontAttributes.Bold
             };
-            Grid.SetColumn(badge, 2);
+            Grid.SetColumn(badge, 3);
 
             fila1.Children.Add(lblHora);
             fila1.Children.Add(lblGuardia);

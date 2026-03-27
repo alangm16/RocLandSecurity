@@ -352,6 +352,7 @@ namespace RocLandSecurity.Views.Supervisor
 
             var stack = new VerticalStackLayout { Spacing = 6 };
 
+            // Descripción
             stack.Children.Add(new Label
             {
                 Text = inc.Descripcion,
@@ -360,15 +361,16 @@ namespace RocLandSecurity.Views.Supervisor
                 LineBreakMode = LineBreakMode.WordWrap
             });
 
+            // Ubicación (si existe)
             if (!string.IsNullOrEmpty(inc.NombrePunto))
             {
                 var ubicacionGrid = new Grid
                 {
                     ColumnDefinitions = new ColumnDefinitionCollection
-                    {
-                        new ColumnDefinition { Width = GridLength.Auto },
-                        new ColumnDefinition { Width = GridLength.Star }
-                    },
+            {
+                new ColumnDefinition { Width = GridLength.Auto },
+                new ColumnDefinition { Width = GridLength.Star }
+            },
                     ColumnSpacing = 6
                 };
 
@@ -395,18 +397,78 @@ namespace RocLandSecurity.Views.Supervisor
                 stack.Children.Add(ubicacionGrid);
             }
 
-            var estadoColor = inc.Estado == 0
-                ? Color.FromArgb("#F09595")
-                : Color.FromArgb("#97C459");
-            var estadoText = inc.Estado == 0 ? "⚠ Abierta" : "✓ Resuelta";
-
-            stack.Children.Add(new Label
+            // Línea de hora + estado + botón foto
+            var filaSuperior = new Grid
             {
-                Text = $"{inc.FechaReporte:HH:mm:ss} · {estadoText}",
-                TextColor = estadoColor,
-                FontSize = 11
-            });
+                ColumnDefinitions = new ColumnDefinitionCollection
+        {
+            new ColumnDefinition { Width = GridLength.Auto }, // hora
+            new ColumnDefinition { Width = GridLength.Star }, // estado
+            new ColumnDefinition { Width = GridLength.Auto }  // botón foto
+        },
+                ColumnSpacing = 8
+            };
 
+            var lblHora = new Label
+            {
+                Text = inc.FechaReporte.ToString("HH:mm:ss"),
+                TextColor = inc.Estado == 0 ? Color.FromArgb("#F09595") : Color.FromArgb("#97C459"),
+                FontSize = 11,
+                VerticalOptions = LayoutOptions.Center
+            };
+            Grid.SetColumn(lblHora, 0);
+
+            var estadoText = inc.Estado == 0 ? "⚠ Abierta" : "✓ Resuelta";
+            var lblEstado = new Label
+            {
+                Text = estadoText,
+                TextColor = inc.Estado == 0 ? Color.FromArgb("#F09595") : Color.FromArgb("#97C459"),
+                FontSize = 11,
+                VerticalOptions = LayoutOptions.Center
+            };
+            Grid.SetColumn(lblEstado, 1);
+
+            filaSuperior.Children.Add(lblHora);
+            filaSuperior.Children.Add(lblEstado);
+
+            // Botón de cámara (si tiene foto)
+            if (inc.TieneFoto)
+            {
+                var btnFoto = new Border
+                {
+                    BackgroundColor = Color.FromArgb("#252525"),
+                    StrokeThickness = 1,
+                    Stroke = Color.FromArgb("#3A3A3A"),
+                    WidthRequest = 28,
+                    HeightRequest = 28,
+                    VerticalOptions = LayoutOptions.Center,
+                    HorizontalOptions = LayoutOptions.End
+                };
+                btnFoto.StrokeShape = new RoundRectangle { CornerRadius = new CornerRadius(7) };
+                btnFoto.Content = new Image
+                {
+                    Source = "camera.png",
+                    WidthRequest = 16,
+                    HeightRequest = 16,
+                    HorizontalOptions = LayoutOptions.Center,
+                    VerticalOptions = LayoutOptions.Center
+                };
+                btnFoto.GestureRecognizers.Add(new TapGestureRecognizer
+                {
+                    CommandParameter = inc.ID,
+                    Command = new Command<int>(async (id) =>
+                    {
+                        var visor = new FotoEvidenciaSupervisorPage(_db, id, esIncidencia: true);
+                        await Navigation.PushModalAsync(visor);
+                    })
+                });
+                Grid.SetColumn(btnFoto, 2);
+                filaSuperior.Children.Add(btnFoto);
+            }
+
+            stack.Children.Add(filaSuperior);
+
+            // Nota de resolución (si está resuelta)
             if (!string.IsNullOrEmpty(inc.NotaResolucion))
             {
                 stack.Children.Add(new Label

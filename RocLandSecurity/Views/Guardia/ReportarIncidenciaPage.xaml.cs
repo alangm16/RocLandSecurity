@@ -20,6 +20,7 @@ namespace RocLandSecurity.Views.Guardia
 
         public string RondinId { set => _rondinId = int.TryParse(value, out var v) ? v : 0; }
         public string TurnoId  { set => _turnoId  = int.TryParse(value, out var v) ? v : 0; }
+        private byte[]? _fotoIncidencia;
 
         // Estado del formulario
         private int               _severidad     = 1;   // 0=Baja 1=Media 2=Alta
@@ -156,6 +157,52 @@ namespace RocLandSecurity.Views.Guardia
             }
         }
 
+        private async void OnTomarFotoIncidenciaClicked(object sender, EventArgs e)
+        {
+            try
+            {
+                var status = await Permissions.RequestAsync<Permissions.Camera>();
+                if (status != PermissionStatus.Granted)
+                {
+                    await ShowToastAsync("Se necesita permiso de cámara.");
+                    return;
+                }
+
+                if (!MediaPicker.Default.IsCaptureSupported)
+                {
+                    await ShowToastAsync("Este dispositivo no soporta captura de fotos.");
+                    return;
+                }
+
+                var photo = await MediaPicker.Default.CapturePhotoAsync();
+                if (photo == null) return;
+
+                using var stream = await photo.OpenReadAsync();
+                using var ms = new MemoryStream();
+                await stream.CopyToAsync(ms);
+
+                // Calidad alta para incidencias (1920×1440, Q85)
+                var rawBytes = ms.ToArray();
+                _fotoIncidencia = await Task.Run(() => ImageCompressor.ComprimirFotoAlta(rawBytes));
+
+                ImgEvidenciaIncidencia.Source = ImageSource.FromStream(() => new MemoryStream(_fotoIncidencia));
+                PanelFotoPreview.IsVisible = true;
+                BtnTomarFotoIncidencia.IsVisible = false;
+            }
+            catch (Exception ex)
+            {
+                await ShowToastAsync($"Error al tomar foto: {ex.Message}");
+            }
+        }
+
+        private void OnEliminarFotoClicked(object sender, EventArgs e)
+        {
+            _fotoIncidencia = null;
+            ImgEvidenciaIncidencia.Source = null;
+            PanelFotoPreview.IsVisible = false;
+            BtnTomarFotoIncidencia.IsVisible = true;
+        }
+
         // ─────────────────────────────────────────────────────────────────
         // ENVIAR
         // ─────────────────────────────────────────────────────────────────
@@ -206,6 +253,7 @@ namespace RocLandSecurity.Views.Guardia
                     Estado           = 0,
                     FechaReporte     = DateTime.Now,
                     FechaModificacion = DateTime.Now,
+                    FotoPath = _fotoIncidencia,
                 });
 
                 await ShowToastAsync("Incidencia reportada", isError: false);
