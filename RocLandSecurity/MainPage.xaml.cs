@@ -407,11 +407,6 @@ namespace RocLandSecurity
         // BOTÓN BACK DEL SISTEMA
         // ─────────────────────────────────────────────────────────────────
 
-        /// <summary>
-        /// Intercepta el botón Back de Android mientras el login está visible.
-        /// Si el usuario NO está autenticado → bloquear (evita revelar el Shell).
-        /// Si está autenticado → comportamiento normal (navegar atrás en modales).
-        /// </summary>
         protected override bool OnBackButtonPressed()
         {
             // Usuario no autenticado: el login está abierto como modal.
@@ -423,7 +418,7 @@ namespace RocLandSecurity
             return base.OnBackButtonPressed();
         }
 
-                public enum ToastType { Error, Warning, Success }
+        public enum ToastType { Error, Warning, Success }
 
         public async Task ShowToastAsync(string message, ToastType type = ToastType.Error, int duration = 2000)
         {
@@ -439,9 +434,9 @@ namespace RocLandSecurity
             ToastFrame.IsVisible = true;
             ToastFrame.Opacity = 0;
 
-            await ToastFrame.FadeTo(1, 250);
+            await ToastFrame.FadeToAsync(1, 250);
             await Task.Delay(duration);
-            await ToastFrame.FadeTo(0, 250);
+            await ToastFrame.FadeToAsync(0, 250);
             ToastFrame.IsVisible = false;
         }
     }

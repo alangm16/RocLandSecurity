@@ -32,9 +32,16 @@
 		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">21.0</SupportedOSPlatformVersion>
 		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</SupportedOSPlatformVersion>
 		<TargetPlatformMinVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</TargetPlatformMinVersion>
+		<PackageCertificateThumbprint>8F336C7C259999BBF70ACEE521E0C19F9D0C04B6</PackageCertificateThumbprint>
+		<AppxPackageSigningEnabled>True</AppxPackageSigningEnabled>
 	</PropertyGroup>
 
-	<!-- ================= ANDROID RELEASE OPTIMIZATIONS ================= -->
+	<PropertyGroup Condition="'$(Configuration)|$(TargetFramework)'=='Release|net10.0-windows'"> 
+		<WindowsPackageType>exe</WindowsPackageType>
+		<RunTimeIdentifier>win10-x64</RunTimeIdentifier>
+	</PropertyGroup>
+
+		<!-- ================= ANDROID RELEASE OPTIMIZATIONS ================= -->
 	<PropertyGroup Condition="'$(Configuration)|$(TargetFramework)'=='Release|net10.0-android'">
 		<!-- APK format -->
 		<AndroidPackageFormat>apk</AndroidPackageFormat>
