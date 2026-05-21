@@ -4,6 +4,7 @@ using Android.Graphics;
 using Android.OS;
 using AndroidX.Core.App;
 using RocLandSecurity.Services;
+using AndroidResource = Microsoft.Maui.Resource;
 
 [assembly: UsesPermission(Android.Manifest.Permission.PostNotifications)]
 [assembly: UsesPermission(Android.Manifest.Permission.ScheduleExactAlarm)]
@@ -126,12 +127,15 @@ namespace RocLandSecurity.Platforms.Android
                 .SetContentText(message)
                 .SetAutoCancel(true)
                 .SetDefaults((int)NotificationDefaults.All)
-                .SetSmallIcon(Resource.Mipmap.appicon);
+                .SetSmallIcon(AndroidResource.Mipmap.appicon);
 
             // Intentar cargar ícono grande si existe
             try
             {
-                var icon = BitmapFactory.DecodeResource(Platform.AppContext.Resources, Resource.Mipmap.appicon);
+                var icon = BitmapFactory.DecodeResource(
+                        Platform.AppContext.Resources,
+                        AndroidResource.Mipmap.appicon
+                    );
                 builder.SetLargeIcon(icon);
             }
             catch { }
