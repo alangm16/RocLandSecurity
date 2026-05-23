@@ -556,13 +556,17 @@ namespace RocLandSecurity.Views.Guardia
             }
             catch (InvalidOperationException ioe)
             {
-                // Duplicado — turno ya existe
+                // Captura nuestras validaciones (ej. "Ya finalizó", "Ya creaste uno hoy")
                 await ShowToastAsync(ioe.Message, true);
                 await CargarDatosAsync();
             }
             catch (Exception ex)
             {
                 await ShowToastAsync($"Error: {ex.Message}", true);
+            }
+            finally
+            {
+                // El finally garantiza que el botón SIEMPRE se libere
                 BtnIniciarTurno.IsEnabled = true;
                 BtnIniciarTurno.Text = "Iniciar turno de hoy";
             }

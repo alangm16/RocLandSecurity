@@ -139,7 +139,6 @@ namespace RocLandSecurity.Services
         {
             var local = await _local.GetTurnoActivoAsync(guardiaID);
 
-            // Auto-finalización local
             if (local != null)
             {
                 var fechaTurno = DateOnly.FromDateTime(local.Fecha);
@@ -147,8 +146,11 @@ namespace RocLandSecurity.Services
 
                 if (DateTime.Now >= limiteFin)
                 {
-                    int idParaFinalizar = local.ID; // ← guardar antes de nullear
+                    int idParaFinalizar = local.ID;
+
+                    // 💡 IMPORTANTE: Matar los rondines ANTES de matar el turno
                     try { await ExpirarRondinesVencidosAsync(idParaFinalizar); } catch { }
+
                     await _local.FinalizarTurnoLocalAsync(idParaFinalizar);
                     local = null;
 
@@ -156,11 +158,10 @@ namespace RocLandSecurity.Services
                     {
                         try { await _server.FinalizarTurnoAsync(idParaFinalizar); } catch { }
                     }
-                    return null; // turno expirado
+                    return null;
                 }
             }
 
-            // Con conexión: refrescar del servidor
             if (await _connectivity.CheckServerAsync())
             {
                 var turnoServidor = await _server.GetTurnoActivoAsync(guardiaID);
@@ -177,9 +178,31 @@ namespace RocLandSecurity.Services
         /// Crear turno — requiere conexión.
         public async Task<Turno> CrearTurnoYRondinesAsync(int guardiaID)
         {
+            // 💡 SOLUCIÓN 2: Validación estricta de horarios
+            TimeSpan horaActual = DateTime.Now.TimeOfDay;
+            TimeSpan inicio = TimeSpan.Parse(AppConfig.HoraInicioTurno);
+            TimeSpan fin = TimeSpan.Parse(AppConfig.HoraFinTurno);
+
+            if (!AppConfig.TurnoCruzaMedianoche)
+            {
+                // Para turnos de día (ej. 11:00 a 11:30)
+                if (horaActual > fin)
+                    throw new InvalidOperationException($"El turno finalizó a las {AppConfig.HoraFinTurno} hrs. Ya no puedes iniciarlo.");
+
+                // Margen de 2 horas previas para poder "pre-iniciar"
+                if (horaActual < inicio.Add(TimeSpan.FromHours(-2)))
+                    throw new InvalidOperationException($"Aún es muy temprano. El turno de hoy inicia a las {AppConfig.HoraInicioTurno} hrs.");
+            }
+            else
+            {
+                // Para turnos nocturnos (ej. 19:00 a 07:00)
+                // Está fuera de horario si está entre las 07:01 y las 16:59 (asumiendo 2 hrs de pre-ingreso)
+                if (horaActual > fin && horaActual < inicio.Add(TimeSpan.FromHours(-2)))
+                    throw new InvalidOperationException($"Fuera de horario. El turno nocturno finalizó a las {AppConfig.HoraFinTurno} hrs.");
+            }
+
             if (!await _connectivity.CheckServerAsync())
-                throw new InvalidOperationException(
-                    "Se requiere conexión para iniciar un nuevo turno.");
+                throw new InvalidOperationException("Se requiere conexión para iniciar un nuevo turno.");
 
             var turno = await _server.CrearTurnoYRondinesAsync(guardiaID);
 
@@ -191,7 +214,6 @@ namespace RocLandSecurity.Services
             foreach (var r in rondines)
                 await _local.UpsertRondinAsync(MapRondinLocal(r));
 
-            // Programar notificaciones para los rondines pendientes
             await ProgramarNotificacionesRondinesAsync(rondines);
 
             return turno;
@@ -294,42 +316,41 @@ namespace RocLandSecurity.Services
             var rondines = await _local.GetRondinesPorTurnoAsync(turnoID);
             var ahora = DateTime.Now;
             int cerrados = 0;
+            bool requiereSync = false;
 
             foreach (var r in rondines)
             {
-                // Solo aplica a rondines aún "abiertos"
                 if (r.Estado >= 2) continue;
 
                 var cierre = r.HoraProgramada.AddMinutes(AppConfig.VentanaInicioDespuesMinutos);
                 if (ahora <= cierre) continue;
 
-                // El rondín venció — calcular estado final
                 var puntos = await _local.GetPuntosDeRondinAsync(r.ID);
-                r.Estado = 3; // Incompleto
-                r.HoraFin = r.HoraFin ?? cierre; // Usar hora de cierre si aún no tiene
+                r.Estado = 3; // 💡 Lo forzamos a Incompleto
+                r.HoraFin = r.HoraFin ?? cierre;
                 r.PuntosTotal = puntos.Count > 0 ? puntos.Count : r.PuntosTotal;
                 r.PuntosVisitados = puntos.Count(p => p.Estado == 1);
                 r.Sincronizado = false;
                 r.FechaModificacion = ahora;
                 await _local.UpsertRondinAsync(r);
 
-                // Marcar puntos pendientes como omitidos en local
                 foreach (var p in puntos.Where(p => p.Estado == 0))
                 {
-                    p.Estado = 2; // Omitido
+                    p.Estado = 2; // Puntos omitidos
                     p.Sincronizado = false;
                     p.FechaModificacion = ahora;
                     await _local.UpsertRondinPuntoAsync(p);
                 }
 
-                // Intentar persistir en servidor
-                if (await _connectivity.CheckServerAsync())
-                {
-                    try { await _server.FinalizarRondinAsync(r.ID); }
-                    catch { /* Se sincronizará en el siguiente ciclo */ }
-                }
-
                 cerrados++;
+                requiereSync = true;
+            }
+
+            // 💡 SOLUCIÓN 3: Ya no llamamos al Server directo. Disparamos un Sync general
+            // para que suba la verdad absoluta del dispositivo a SQL Server.
+            if (requiereSync && await _connectivity.CheckServerAsync())
+            {
+                _ = Task.Run(async () => await _sync.SincronizarAsync(SyncReason.AccionCritica));
             }
 
             return cerrados;
@@ -494,13 +515,15 @@ namespace RocLandSecurity.Services
         /// Finalizar rondín: local + servidor + sync crítico.
         public async Task FinalizarRondinAsync(int rondinID)
         {
-            // Actualizar local
             var local = await _local.GetRondinPorIDAsync(rondinID);
             if (local != null)
             {
                 var puntos = await _local.GetPuntosDeRondinAsync(rondinID);
-                bool todos = puntos.All(p => p.Estado == 1);
-                local.Estado = todos ? 2 : 3;
+
+                // 💡 Prevención de división por 0 y falsa victoria
+                bool todosVisitados = puntos.Count > 0 && puntos.All(p => p.Estado == 1);
+                local.Estado = todosVisitados ? 2 : 3;
+
                 local.HoraFin = DateTime.Now;
                 local.PuntosTotal = puntos.Count;
                 local.PuntosVisitados = puntos.Count(p => p.Estado == 1);
@@ -509,7 +532,6 @@ namespace RocLandSecurity.Services
                 await _local.UpsertRondinAsync(local);
             }
 
-            // Intentar servidor
             if (await _connectivity.CheckServerAsync())
             {
                 try
@@ -523,9 +545,7 @@ namespace RocLandSecurity.Services
                 }
                 catch { }
 
-                // Sync completo de pendientes como acción crítica
-                _ = Task.Run(async () =>
-                    await _sync.SincronizarAsync(SyncReason.AccionCritica));
+                _ = Task.Run(async () => await _sync.SincronizarAsync(SyncReason.AccionCritica));
             }
         }
 

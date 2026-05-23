@@ -113,18 +113,14 @@ namespace RocLandSecurity.Services
 
         public async Task<TurnoLocal?> GetTurnoActivoAsync(int guardiaID)
         {
-            var hoy = DateTime.Today;
-            var ayer = hoy.AddDays(-1);
-
-            // Busca turno Pendiente (0) o En Progreso (1) en hoy o ayer
-            // (cubre turnos nocturnos que iniciaron ayer y siguen activos hoy)
+            // Traemos el turno Pendiente (0) o En Progreso (1) 
+            // sin importar su fecha de creación.
             var candidatos = await Db.Table<TurnoLocal>()
                 .Where(t => t.GuardiaID == guardiaID
-                         && (t.Estado == 0 || t.Estado == 1)
-                         && (t.Fecha == hoy || t.Fecha == ayer))
+                         && (t.Estado == 0 || t.Estado == 1))
                 .ToListAsync();
 
-            // Si hay dos preferir el más reciente
+            // Preferir el más reciente
             return candidatos.OrderByDescending(t => t.Fecha).FirstOrDefault();
         }
 

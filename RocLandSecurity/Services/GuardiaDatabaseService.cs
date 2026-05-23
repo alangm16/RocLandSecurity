@@ -70,7 +70,6 @@ namespace RocLandSecurity.Services
             const string checkQuery = @"
                 SELECT COUNT(*) FROM TBL_ROCLAND_SECURITY_TURNOS
                 WHERE GuardiaID = @guardiaID 
-                  AND Estado IN (0, 1) 
                   AND Fecha = CAST(GETDATE() AS DATE)";
 
             using var cmdCheck = new SqlCommand(checkQuery, conn);
@@ -287,33 +286,39 @@ namespace RocLandSecurity.Services
             await conn.OpenAsync();
 
             const string omitir = @"
-                UPDATE TBL_ROCLAND_SECURITY_RONDINESPUNTOS
-                SET Estado = 2, FechaModificacion = GETDATE()
-                WHERE RondinID = @rondinID AND Estado = 0";
+        UPDATE TBL_ROCLAND_SECURITY_RONDINESPUNTOS
+        SET Estado = 2, FechaModificacion = GETDATE()
+        WHERE RondinID = @rondinID AND Estado = 0";
             using var cmdOmitir = new SqlCommand(omitir, conn);
             cmdOmitir.Parameters.AddWithValue("@rondinID", rondinID);
             await cmdOmitir.ExecuteNonQueryAsync();
 
+            // 💡 SOLUCIÓN 2: Agregamos la columna "TotalPuntos" a la consulta
             const string estadoQuery = @"
-                SELECT
-                    (SELECT COUNT(*) FROM TBL_ROCLAND_SECURITY_RONDINESPUNTOS
-                     WHERE RondinID = @rondinID AND Estado = 2) AS Omitidos,
-                    (SELECT COUNT(*) FROM TBL_ROCLAND_SECURITY_INCIDENCIAS
-                     WHERE RondinID = @rondinID) AS Incidencias";
+        SELECT
+            (SELECT COUNT(*) FROM TBL_ROCLAND_SECURITY_RONDINESPUNTOS WHERE RondinID = @rondinID) AS TotalPuntos,
+            (SELECT COUNT(*) FROM TBL_ROCLAND_SECURITY_RONDINESPUNTOS WHERE RondinID = @rondinID AND Estado = 2) AS Omitidos,
+            (SELECT COUNT(*) FROM TBL_ROCLAND_SECURITY_INCIDENCIAS WHERE RondinID = @rondinID) AS Incidencias";
+
             using var cmdEstado = new SqlCommand(estadoQuery, conn);
             cmdEstado.Parameters.AddWithValue("@rondinID", rondinID);
+
             using var reader = await cmdEstado.ExecuteReaderAsync();
             await reader.ReadAsync();
-            int omitidos = reader.GetInt32(0);
-            int incidencias = reader.GetInt32(1);
+            int totalPuntos = reader.GetInt32(0);
+            int omitidos = reader.GetInt32(1);
+            int incidencias = reader.GetInt32(2);
             reader.Close();
 
-            int estadoFinal = incidencias > 0 ? 4 : omitidos > 0 ? 3 : 2;
+            // 💡 LÓGICA CORREGIDA: Si nunca se generaron puntos (0), es porque no se hizo.
+            int estadoFinal = 2; // Asumimos Completado por defecto
+            if (totalPuntos == 0 || omitidos > 0) estadoFinal = 3; // Incompleto
+            if (incidencias > 0) estadoFinal = 4; // Con Incidencia
 
             const string update = @"
-                UPDATE TBL_ROCLAND_SECURITY_RONDINES
-                SET Estado = @estado, HoraFin = GETDATE(), FechaModificacion = GETDATE()
-                WHERE ID = @rondinID";
+        UPDATE TBL_ROCLAND_SECURITY_RONDINES
+        SET Estado = @estado, HoraFin = ISNULL(HoraFin, GETDATE()), FechaModificacion = GETDATE()
+        WHERE ID = @rondinID";
             using var cmdUpdate = new SqlCommand(update, conn);
             cmdUpdate.Parameters.AddWithValue("@estado", estadoFinal);
             cmdUpdate.Parameters.AddWithValue("@rondinID", rondinID);
