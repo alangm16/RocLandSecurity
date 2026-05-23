@@ -28,8 +28,8 @@ namespace RocLandSecurity.Services
                       Fecha = CAST(GETDATE() AS DATE)
                       OR
                       (Fecha = CAST(DATEADD(DAY,-1,GETDATE()) AS DATE)
-                       AND HoraFin <= '06:00'
-                       AND CAST(GETDATE() AS TIME) <= '06:00')
+                       AND HoraFin <= '07:00'
+                       AND CAST(GETDATE() AS TIME) <= '07:00')
                   )";
             using var cmd = new SqlCommand(query, conn);
             cmd.Parameters.AddWithValue("@guardiaID", guardiaID);

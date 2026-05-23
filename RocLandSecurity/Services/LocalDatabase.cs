@@ -108,10 +108,10 @@ namespace RocLandSecurity.Services
             var ayer = hoy.AddDays(-1);
             var ahora = DateTime.Now.TimeOfDay;
             var mediano = new TimeSpan(0, 0, 0);
-            var las6 = new TimeSpan(6, 0, 0);
+            var las7 = new TimeSpan(7, 0, 0);
 
             // Turno cruza medianoche: si son 00:00-06:00 buscar turno de ayer
-            bool esAmbito = ahora >= mediano && ahora < las6;
+            bool esAmbito = ahora >= mediano && ahora < las7;
             var fechaBuscar = esAmbito ? ayer : hoy;
 
             return Db.Table<TurnoLocal>()
