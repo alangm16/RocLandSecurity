@@ -23,9 +23,9 @@ namespace RocLandSecurity.Services
 
             // Solo traemos turnos Pendientes (0) o En Progreso (1)
             const string query = @"
-        SELECT ID, Fecha, HoraInicio, HoraFin, Estado, GuardiaID
-        FROM TBL_ROCLAND_SECURITY_TURNOS
-        WHERE GuardiaID = @guardiaID AND Estado IN (0, 1)";
+                SELECT ID, Fecha, HoraInicio, HoraFin, GuardiaID, Estado
+                FROM TBL_ROCLAND_SECURITY_TURNOS
+                WHERE GuardiaID = @guardiaID AND Estado IN (0, 1)";
 
             using var cmd = new SqlCommand(query, conn);
             cmd.Parameters.AddWithValue("@guardiaID", guardiaID);

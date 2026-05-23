@@ -148,6 +148,7 @@ namespace RocLandSecurity.Services
                 if (DateTime.Now >= limiteFin)
                 {
                     int idParaFinalizar = local.ID; // ← guardar antes de nullear
+                    try { await ExpirarRondinesVencidosAsync(idParaFinalizar); } catch { }
                     await _local.FinalizarTurnoLocalAsync(idParaFinalizar);
                     local = null;
 
