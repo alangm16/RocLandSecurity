@@ -18,23 +18,47 @@ namespace RocLandSecurity.Services
 
         public async Task<Turno?> GetTurnoActivoAsync(int guardiaID)
         {
-            using var conn = new SqlConnection(ConnectionString);
+            using var conn = new SqlConnection(AppConfig.ConnectionString);
             await conn.OpenAsync();
+
+            // Solo traemos turnos Pendientes (0) o En Progreso (1)
             const string query = @"
-                SELECT ID, Fecha, HoraInicio, HoraFin, GuardiaID
-                FROM TBL_ROCLAND_SECURITY_TURNOS
-                WHERE GuardiaID = @guardiaID
-                  AND (
-                      Fecha = CAST(GETDATE() AS DATE)
-                      OR
-                      (Fecha = CAST(DATEADD(DAY,-1,GETDATE()) AS DATE)
-                       AND HoraFin <= '07:00'
-                       AND CAST(GETDATE() AS TIME) <= '07:00')
-                  )";
+        SELECT ID, Fecha, HoraInicio, HoraFin, Estado, GuardiaID
+        FROM TBL_ROCLAND_SECURITY_TURNOS
+        WHERE GuardiaID = @guardiaID AND Estado IN (0, 1)";
+
             using var cmd = new SqlCommand(query, conn);
             cmd.Parameters.AddWithValue("@guardiaID", guardiaID);
+
             using var reader = await cmd.ExecuteReaderAsync();
-            return await reader.ReadAsync() ? MapTurno(reader) : null;
+            if (!await reader.ReadAsync()) return null;
+
+            var turno = MapTurno(reader); // Asegúrate de mapear turno.Estado
+
+            // 💡 MEJORA ESTRELLA: Auto-finalización por tiempo pasado
+            DateTime limiteFin = CalcularLimiteFinDeTurno(turno.Fecha);
+
+            if (DateTime.Now >= limiteFin)
+            {
+                // El tiempo ya pasó. Forzamos el estado a Finalizado (2)
+                await FinalizarTurnoAsync(turno.ID);
+
+                // Retornamos null porque ya no hay turno activo válido para operar
+                return null;
+            }
+
+            return turno;
+        }
+
+        // Método para finalizar (usado manual y automáticamente)
+        public async Task FinalizarTurnoAsync(int turnoID)
+        {
+            using var conn = new SqlConnection(AppConfig.ConnectionString);
+            await conn.OpenAsync();
+            const string query = "UPDATE TBL_ROCLAND_SECURITY_TURNOS SET Estado = 2 WHERE ID = @ID";
+            using var cmd = new SqlCommand(query, conn);
+            cmd.Parameters.AddWithValue("@ID", turnoID);
+            await cmd.ExecuteNonQueryAsync();
         }
 
         public async Task<Turno> CrearTurnoYRondinesAsync(int guardiaID)
@@ -42,41 +66,55 @@ namespace RocLandSecurity.Services
             using var conn = new SqlConnection(ConnectionString);
             await conn.OpenAsync();
 
+            // 1. Validamos que no tenga un turno Pendiente (0) o En Progreso (1) actualmente
             const string checkQuery = @"
                 SELECT COUNT(*) FROM TBL_ROCLAND_SECURITY_TURNOS
-                WHERE GuardiaID = @guardiaID AND Fecha = CAST(GETDATE() AS DATE)";
+                WHERE GuardiaID = @guardiaID 
+                  AND Estado IN (0, 1) 
+                  AND Fecha = CAST(GETDATE() AS DATE)";
+
             using var cmdCheck = new SqlCommand(checkQuery, conn);
             cmdCheck.Parameters.AddWithValue("@guardiaID", guardiaID);
+
             var count = (int)(await cmdCheck.ExecuteScalarAsync() ?? 0);
             if (count > 0)
-                throw new InvalidOperationException("Ya existe un turno para hoy.");
+                throw new InvalidOperationException("Ya existe un turno pendiente o activo para hoy.");
 
             string horaInicio = HoraInicioTurno;
             string horaFin = HoraFinTurno;
 
+            // 2. Insertamos el turno y forzamos el Estado = 1 (En progreso)
             const string insertTurno = @"
-                INSERT INTO TBL_ROCLAND_SECURITY_TURNOS (Fecha, HoraInicio, HoraFin, GuardiaID)
-                VALUES (CAST(GETDATE() AS DATE), @HoraInicio, @HoraFin, @GuardiaID);
+                INSERT INTO TBL_ROCLAND_SECURITY_TURNOS (Fecha, HoraInicio, HoraFin, Estado, GuardiaID)
+                VALUES (CAST(GETDATE() AS DATE), @HoraInicio, @HoraFin, 1, @GuardiaID);
                 SELECT SCOPE_IDENTITY();";
+
             using var cmdInsert = new SqlCommand(insertTurno, conn);
             cmdInsert.Parameters.AddWithValue("@HoraInicio", horaInicio);
             cmdInsert.Parameters.AddWithValue("@HoraFin", horaFin);
             cmdInsert.Parameters.AddWithValue("@GuardiaID", guardiaID);
+
             int turnoID = Convert.ToInt32(await cmdInsert.ExecuteScalarAsync());
 
+            // Generamos los rondines
             using var cmdSP = new SqlCommand("sp_GenerarRondinesTurno", conn)
-            { CommandType = System.Data.CommandType.StoredProcedure };
+            {
+                CommandType = System.Data.CommandType.StoredProcedure
+            };
             cmdSP.Parameters.AddWithValue("@TurnoID", turnoID);
             cmdSP.Parameters.AddWithValue("@Fecha", DateOnly.FromDateTime(DateTime.Today));
             cmdSP.Parameters.AddWithValue("@GuardiaID", guardiaID);
+
             await cmdSP.ExecuteNonQueryAsync();
 
+            // 3. Retornamos el objeto con su Estado actualizado
             return new Turno
             {
                 ID = turnoID,
                 Fecha = DateOnly.FromDateTime(DateTime.Today),
                 HoraInicio = TimeOnly.Parse(horaInicio),
                 HoraFin = TimeOnly.Parse(horaFin),
+                Estado = 1, // Lo marcamos como En Progreso
                 GuardiaID = guardiaID
             };
         }

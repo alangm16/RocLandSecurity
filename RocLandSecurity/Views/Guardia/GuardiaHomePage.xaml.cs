@@ -60,9 +60,8 @@ namespace RocLandSecurity.Views.Guardia
             if (usuario == null) return;
 
             LblNombre.Text = usuario.Nombre;
-            LblFechaTurno.Text = DateTime.Now.ToString(
-                "dddd dd 'de' MMMM",
-                new System.Globalization.CultureInfo("es-MX"));
+            string tipoTurno = AppConfig.TurnoCruzaMedianoche ? "Turno nocturno" : "Turno nocturno";
+            LblFechaTurno.Text = $"{tipoTurno} · {DateTime.Now:dd/M/yyyy}";
 
             LoadingIndicator.IsVisible = true;
             PanelSinTurno.IsVisible = false;

@@ -11,6 +11,7 @@ namespace RocLandSecurity.Models
         public DateOnly Fecha { get; set; }
         public TimeOnly HoraInicio { get; set; }
         public TimeOnly HoraFin { get; set; }
+        public byte Estado { get; set; }
         public int GuardiaID { get; set; }
         public string NombreGuardia { get; set; } = string.Empty;
         public string FechaStr => Fecha.ToString("dd/MM/yyyy");

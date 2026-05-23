@@ -134,23 +134,43 @@ namespace RocLandSecurity.Services
 
         /// Obtiene turno activo. Requiere conexión para crear turnos nuevos.
         /// Si hay turno en local, lo devuelve aunque esté offline.
-        
+
         public async Task<Turno?> GetTurnoActivoAsync(int guardiaID)
         {
-            // Siempre verificar local primero (tiene el estado más actualizado)
             var local = await _local.GetTurnoActivoAsync(guardiaID);
-            if (local != null) return MapTurno(local);
 
-            // Si no hay local, intentar del servidor
-            if (await _connectivity.CheckServerAsync())
+            // Auto-finalización local
+            if (local != null)
             {
-                var turno = await _server.GetTurnoActivoAsync(guardiaID);
-                if (turno != null)
-                    await _local.UpsertTurnoAsync(MapTurnoLocal(turno));
-                return turno;
+                var fechaTurno = DateOnly.FromDateTime(local.Fecha);
+                var limiteFin = AppConfig.CalcularLimiteFinDeTurno(fechaTurno);
+
+                if (DateTime.Now >= limiteFin)
+                {
+                    int idParaFinalizar = local.ID; // ← guardar antes de nullear
+                    await _local.FinalizarTurnoLocalAsync(idParaFinalizar);
+                    local = null;
+
+                    if (await _connectivity.CheckServerAsync())
+                    {
+                        try { await _server.FinalizarTurnoAsync(idParaFinalizar); } catch { }
+                    }
+                    return null; // turno expirado
+                }
             }
 
-            return null;
+            // Con conexión: refrescar del servidor
+            if (await _connectivity.CheckServerAsync())
+            {
+                var turnoServidor = await _server.GetTurnoActivoAsync(guardiaID);
+                if (turnoServidor != null)
+                    await _local.UpsertTurnoAsync(MapTurnoLocal(turnoServidor));
+                else if (local != null)
+                    await _local.FinalizarTurnoLocalAsync(local.ID);
+                return turnoServidor;
+            }
+
+            return local != null ? MapTurno(local) : null;
         }
 
         /// Crear turno — requiere conexión.
@@ -660,6 +680,7 @@ namespace RocLandSecurity.Services
             Fecha = DateOnly.FromDateTime(t.Fecha),
             HoraInicio = TimeOnly.FromTimeSpan(t.HoraInicio),
             HoraFin = TimeOnly.FromTimeSpan(t.HoraFin),
+            Estado = t.Estado,   // ← agregar esta línea
         };
 
         private static TurnoLocal MapTurnoLocal(Turno t) => new()
@@ -669,6 +690,7 @@ namespace RocLandSecurity.Services
             Fecha = t.Fecha.ToDateTime(TimeOnly.MinValue),
             HoraInicio = t.HoraInicio.ToTimeSpan(),
             HoraFin = t.HoraFin.ToTimeSpan(),
+            Estado = t.Estado,   // ← agregar esta línea
             Sincronizado = true,
         };
 

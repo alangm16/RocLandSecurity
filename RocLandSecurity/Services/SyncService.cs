@@ -81,6 +81,8 @@ namespace RocLandSecurity.Services
                 // 2. SUBIR: rondines modificados offline → servidor
                 result.RondinesSincronizados = await SubirRondinesAsync(conn);
 
+                result.TurnosSincronizados = await SubirTurnosAsync(conn);
+
                 // 3. SUBIR: visitas a puntos offline → servidor
                 result.PuntosSincronizados = await SubirVisitasPuntosAsync(conn);
 
@@ -162,6 +164,33 @@ namespace RocLandSecurity.Services
                     count++;
                 }
                 catch { /* Reintento en próximo ciclo */ }
+            }
+            return count;
+        }
+
+        private async Task<int> SubirTurnosAsync(SqlConnection conn)
+        {
+            // Buscar turnos locales no sincronizados (solo los finalizados offline)
+            var pendientes = await _local.GetTurnosPendientesSyncAsync(); // método nuevo en LocalDatabase
+            int count = 0;
+            foreach (var t in pendientes)
+            {
+                try
+                {
+                    const string upd = @"
+                UPDATE TBL_ROCLAND_SECURITY_TURNOS
+                SET Estado = @estado
+                WHERE ID = @id";
+                    using var cmd = new SqlCommand(upd, conn);
+                    cmd.Parameters.AddWithValue("@id", t.ID);
+                    cmd.Parameters.AddWithValue("@estado", t.Estado);
+                    await cmd.ExecuteNonQueryAsync();
+                    // Marcar como sincronizado localmente
+                    t.Sincronizado = true;
+                    await _local.UpsertTurnoAsync(t);
+                    count++;
+                }
+                catch { }
             }
             return count;
         }
@@ -326,6 +355,7 @@ namespace RocLandSecurity.Services
         public bool Exitoso { get; set; }
         public bool Omitido { get; set; }
         public bool PuntosDescargados { get; set; }
+        public int TurnosSincronizados { get; set; }
         public int RondinesSincronizados { get; set; }
         public int PuntosSincronizados { get; set; }
         public int IncidenciasSincronizadas { get; set; }

@@ -36,7 +36,8 @@ namespace RocLandSecurity.Services
             Fecha = DateOnly.FromDateTime(r.GetDateTime(1)),
             HoraInicio = TimeOnly.FromTimeSpan(r.GetTimeSpan(2)),
             HoraFin = TimeOnly.FromTimeSpan(r.GetTimeSpan(3)),
-            GuardiaID = r.GetInt32(4)
+            GuardiaID = r.GetInt32(4),
+            Estado = r.GetByte(5),
         };
 
         protected static Rondin MapRondin(SqlDataReader r) => new()

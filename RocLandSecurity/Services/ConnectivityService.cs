@@ -34,7 +34,7 @@ namespace RocLandSecurity.Services
                      kv[0].Trim().Equals("Data Source", StringComparison.OrdinalIgnoreCase)))
                     return kv[1].Trim();
             }
-            return "192.168.1.94";
+            return "192.168.1.6";
         }
 
 

@@ -33,6 +33,9 @@ namespace RocLandSecurity.Services
         public Task<RondinPuntoLocal?> GetRondinPuntoPorServerIDAsync(int serverID) =>
             Db.Table<RondinPuntoLocal>().Where(rp => rp.ServerID == serverID).FirstOrDefaultAsync();
 
+        public Task<List<TurnoLocal>> GetTurnosPendientesSyncAsync() =>
+            Db.Table<TurnoLocal>().Where(t => !t.Sincronizado).ToListAsync();
+
 
         // INICIALIZACIÓN
 
@@ -70,23 +73,29 @@ namespace RocLandSecurity.Services
         }
 
 
-        public Task<UsuarioLocal?> GetUsuarioByLoginAsync(string usuario, string hashContrasena)
+        public async Task<UsuarioLocal?> GetUsuarioByLoginAsync(string usuario, string hashContrasena)
         {
-            // SQL Server guarda el hash en UPPERCASE (HASHBYTES → CONVERT).
-            // C# (HashSHA256) lo genera en LOWERCASE.
-            // Aceptamos ambas variantes para que el login offline funcione.
             string hashUp = hashContrasena.ToUpperInvariant();
             string hashLo = hashContrasena.ToLowerInvariant();
-            return Db.Table<UsuarioLocal>()
+            var corte = DateTime.Now.AddDays(-AppConfig.RetencionDatosSync); // 1 día
+
+            var u = await Db.Table<UsuarioLocal>()
               .Where(u => u.UsuarioLogin == usuario && u.Activo &&
                          (u.Contrasena == hashUp || u.Contrasena == hashLo))
               .FirstOrDefaultAsync();
+
+            // Si el caché es demasiado viejo, lo tratamos como no encontrado
+            return (u != null && u.FechaCacheada >= corte) ? u : null;
         }
 
-        public Task<UsuarioLocal?> GetUsuarioByQRAsync(string qrCode) =>
-            Db.Table<UsuarioLocal>()
-              .Where(u => u.QRCode == qrCode && u.Activo)
-              .FirstOrDefaultAsync();
+        public async Task<UsuarioLocal?> GetUsuarioByQRAsync(string qrCode)
+        {
+            var corte = DateTime.Now.AddDays(-AppConfig.RetencionDatosSync);
+            var u = await Db.Table<UsuarioLocal>()
+                      .Where(u => u.QRCode == qrCode && u.Activo)
+                      .FirstOrDefaultAsync();
+            return (u != null && u.FechaCacheada >= corte) ? u : null;
+        }
 
         // PUNTOS DE CONTROL — Catálogo offline
 
@@ -102,21 +111,32 @@ namespace RocLandSecurity.Services
         public Task UpsertTurnoAsync(TurnoLocal t) =>
             Db.InsertOrReplaceAsync(t);
 
-        public Task<TurnoLocal?> GetTurnoActivoAsync(int guardiaID)
+        public async Task<TurnoLocal?> GetTurnoActivoAsync(int guardiaID)
         {
             var hoy = DateTime.Today;
             var ayer = hoy.AddDays(-1);
-            var ahora = DateTime.Now.TimeOfDay;
-            var mediano = new TimeSpan(0, 0, 0);
-            var las7 = new TimeSpan(7, 0, 0);
 
-            // Turno cruza medianoche: si son 00:00-06:00 buscar turno de ayer
-            bool esAmbito = ahora >= mediano && ahora < las7;
-            var fechaBuscar = esAmbito ? ayer : hoy;
+            // Busca turno Pendiente (0) o En Progreso (1) en hoy o ayer
+            // (cubre turnos nocturnos que iniciaron ayer y siguen activos hoy)
+            var candidatos = await Db.Table<TurnoLocal>()
+                .Where(t => t.GuardiaID == guardiaID
+                         && (t.Estado == 0 || t.Estado == 1)
+                         && (t.Fecha == hoy || t.Fecha == ayer))
+                .ToListAsync();
 
-            return Db.Table<TurnoLocal>()
-                .Where(t => t.GuardiaID == guardiaID && t.Fecha == fechaBuscar)
-                .FirstOrDefaultAsync();
+            // Si hay dos preferir el más reciente
+            return candidatos.OrderByDescending(t => t.Fecha).FirstOrDefault();
+        }
+
+        public async Task FinalizarTurnoLocalAsync(int turnoID)
+        {
+            var t = await GetTurnoPorIDAsync(turnoID);
+            if (t != null)
+            {
+                t.Estado = 2;
+                t.Sincronizado = false; // Pendiente de sync al recuperar conexión
+                await Db.UpdateAsync(t);
+            }
         }
 
         public Task<TurnoLocal?> GetTurnoPorIDAsync(int turnoID) =>
@@ -294,6 +314,7 @@ namespace RocLandSecurity.Services
         public DateTime Fecha { get; set; }
         public TimeSpan HoraInicio { get; set; }
         public TimeSpan HoraFin { get; set; }
+        public byte Estado { get; set; }   // 0-3
         public bool Sincronizado { get; set; } = true; // Los turnos siempre se crean online
     }
 
