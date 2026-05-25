@@ -17,7 +17,8 @@ namespace RocLandSecurity.Services
     ///   2. Al completar una acción crítica (finalizar rondín, incidencia).
     ///   3. Al reconectar (ConnectivityService.ConnectivityChanged).
     ///   4. Timer cada 5 minutos si hay conexión.
-    
+    ///   5. Antes de crear un nuevo turno (OfflineDatabaseService.CrearTurnoYRondinesAsync).
+
     public class SyncService
     {
         private readonly LocalDatabase _local;
@@ -36,14 +37,15 @@ namespace RocLandSecurity.Services
             _connectivity = connectivity;
             _connectionString = connectionString;
 
-            // Sincronizar cuando se recupere la conexión
             _connectivity.ConnectivityChanged += async (_, online) =>
             {
                 if (online) await SincronizarAsync(SyncReason.Reconexion);
             };
         }
 
+        // ═══════════════════════════════════════════════════════════════
         // ARRANQUE DEL TIMER
+        // ═══════════════════════════════════════════════════════════════
 
         public void IniciarTimerSync(int intervalMinutos = AppConfig.SyncTimerIntervaloMinutos)
         {
@@ -59,7 +61,9 @@ namespace RocLandSecurity.Services
 
         public void DetenerTimer() => _timer?.Dispose();
 
+        // ═══════════════════════════════════════════════════════════════
         // SINCRONIZACIÓN PRINCIPAL
+        // ═══════════════════════════════════════════════════════════════
 
         public async Task<SyncResult> SincronizarAsync(SyncReason razon = SyncReason.Manual)
         {
@@ -74,22 +78,25 @@ namespace RocLandSecurity.Services
                 using var conn = new SqlConnection(_connectionString);
                 await conn.OpenAsync();
 
-                // 1. DESCARGAR: catálogo de puntos y datos del servidor → local
+                // 1. DESCARGAR: catálogo de puntos → local
                 await DescargarPuntosControlAsync(conn);
                 result.PuntosDescargados = true;
 
-                // 2. SUBIR: rondines modificados offline → servidor
-                result.RondinesSincronizados = await SubirRondinesAsync(conn);
-
+                // 2. SUBIR: turnos finalizados offline → servidor
+                //    (DEBE ir antes que rondines para que el servidor
+                //     vea el turno en Estado=2 antes de recibir sus rondines)
                 result.TurnosSincronizados = await SubirTurnosAsync(conn);
 
-                // 3. SUBIR: visitas a puntos offline → servidor
+                // 3. SUBIR: rondines modificados offline → servidor
+                result.RondinesSincronizados = await SubirRondinesAsync(conn);
+
+                // 4. SUBIR: visitas a puntos offline → servidor
                 result.PuntosSincronizados = await SubirVisitasPuntosAsync(conn);
 
-                // 4. SUBIR: incidencias creadas offline → servidor
+                // 5. SUBIR: incidencias creadas offline → servidor
                 result.IncidenciasSincronizadas = await SubirIncidenciasAsync(conn);
 
-                // 5. LIMPIAR: datos viejos ya sincronizados
+                // 6. LIMPIAR: datos viejos ya sincronizados
                 await _local.LimpiarDatosViejosAsync();
 
                 result.Exitoso = true;
@@ -107,7 +114,9 @@ namespace RocLandSecurity.Services
             return result;
         }
 
-        // DESCARGA: puntos de control (catálogo base)
+        // ═══════════════════════════════════════════════════════════════
+        // DESCARGA: puntos de control
+        // ═══════════════════════════════════════════════════════════════
 
         private async Task DescargarPuntosControlAsync(SqlConnection conn)
         {
@@ -130,7 +139,70 @@ namespace RocLandSecurity.Services
             }
         }
 
+        // ═══════════════════════════════════════════════════════════════
+        // SUBIDA: turnos finalizados offline
+        // ═══════════════════════════════════════════════════════════════
+
+        private async Task<int> SubirTurnosAsync(SqlConnection conn)
+        {
+            // ─────────────────────────────────────────────────────────
+            // FIX G: SYNC DE TURNOS — CRÍTICO PARA EL CRUCE DE DÍA
+            //
+            // PROBLEMA: Si el guardia termina el turno sin internet (o el
+            // último rondín se auto-finalizó), el TurnoLocal queda con
+            // Estado=2 y Sincronizado=false. El SyncService original ya
+            // tenía este método, pero es fundamental que se ejecute ANTES
+            // que SubirRondinesAsync para que cuando el servidor reciba los
+            // rondines del turno, el turno ya esté en Estado=2. Así, al día
+            // siguiente, la validación de CrearTurnoYRondinesAsync en el
+            // servidor no encontrará ningún turno Estado IN (0,1).
+            //
+            // ADICIONALMENTE: Si el turno existe en el servidor pero con un
+            // estado anterior (ej. Estado=1 cuando local tiene Estado=2),
+            // forzamos el update. Esto resuelve el caso en que el servidor
+            // y local quedaron desincronizados.
+            // ─────────────────────────────────────────────────────────
+            var pendientes = await _local.GetTurnosPendientesSyncAsync();
+            int count = 0;
+
+            foreach (var t in pendientes)
+            {
+                try
+                {
+                    // UPSERT defensivo: si el turno existe en servidor, actualizar.
+                    // Si no existe (caso extremo de turno creado offline), insertar.
+                    const string checkExiste = @"
+                        SELECT COUNT(*) FROM TBL_ROCLAND_SECURITY_TURNOS WHERE ID = @id";
+                    using var cmdCheck = new SqlCommand(checkExiste, conn);
+                    cmdCheck.Parameters.AddWithValue("@id", t.ID);
+                    int existe = (int)(await cmdCheck.ExecuteScalarAsync() ?? 0);
+
+                    if (existe > 0)
+                    {
+                        // El turno existe en servidor: solo actualizamos Estado
+                        const string upd = @"
+                            UPDATE TBL_ROCLAND_SECURITY_TURNOS
+                            SET Estado = @estado
+                            WHERE ID = @id";
+                        using var cmdUpd = new SqlCommand(upd, conn);
+                        cmdUpd.Parameters.AddWithValue("@id", t.ID);
+                        cmdUpd.Parameters.AddWithValue("@estado", t.Estado);
+                        await cmdUpd.ExecuteNonQueryAsync();
+                    }
+                    // Si no existe, no hacemos nada (los turnos siempre se crean online)
+
+                    t.Sincronizado = true;
+                    await _local.UpsertTurnoAsync(t);
+                    count++;
+                }
+                catch { /* Reintento en próximo ciclo */ }
+            }
+            return count;
+        }
+
+        // ═══════════════════════════════════════════════════════════════
         // SUBIDA: rondines con estado modificado offline
+        // ═══════════════════════════════════════════════════════════════
 
         private async Task<int> SubirRondinesAsync(SqlConnection conn)
         {
@@ -141,14 +213,13 @@ namespace RocLandSecurity.Services
             {
                 try
                 {
-                    // UPDATE: el rondín ya existe en el servidor (se crea siempre online)
                     const string upd = @"
                         UPDATE TBL_ROCLAND_SECURITY_RONDINES
-                        SET Estado = @estado,
-                            HoraInicio = @horaInicio,
-                            HoraFin    = @horaFin,
+                        SET Estado            = @estado,
+                            HoraInicio        = @horaInicio,
+                            HoraFin           = @horaFin,
                             FechaModificacion = @fechaMod,
-                            Sincronizado = 1
+                            Sincronizado      = 1
                         WHERE ID = @id
                           AND (FechaModificacion IS NULL OR FechaModificacion <= @fechaMod)";
 
@@ -163,78 +234,51 @@ namespace RocLandSecurity.Services
                     await _local.MarcarRondinSincronizadoAsync(r.ID);
                     count++;
                 }
-                catch { /* Reintento en próximo ciclo */ }
-            }
-            return count;
-        }
-
-        private async Task<int> SubirTurnosAsync(SqlConnection conn)
-        {
-            // Buscar turnos locales no sincronizados (solo los finalizados offline)
-            var pendientes = await _local.GetTurnosPendientesSyncAsync(); // método nuevo en LocalDatabase
-            int count = 0;
-            foreach (var t in pendientes)
-            {
-                try
-                {
-                    const string upd = @"
-                UPDATE TBL_ROCLAND_SECURITY_TURNOS
-                SET Estado = @estado
-                WHERE ID = @id";
-                    using var cmd = new SqlCommand(upd, conn);
-                    cmd.Parameters.AddWithValue("@id", t.ID);
-                    cmd.Parameters.AddWithValue("@estado", t.Estado);
-                    await cmd.ExecuteNonQueryAsync();
-                    // Marcar como sincronizado localmente
-                    t.Sincronizado = true;
-                    await _local.UpsertTurnoAsync(t);
-                    count++;
-                }
                 catch { }
             }
             return count;
         }
 
+        // ═══════════════════════════════════════════════════════════════
         // SUBIDA: visitas a puntos escaneados offline
+        // ═══════════════════════════════════════════════════════════════
 
         private async Task<int> SubirVisitasPuntosAsync(SqlConnection conn)
         {
             var pendientes = await _local.GetPuntosPendientesSyncAsync();
             System.Diagnostics.Debug.WriteLine($"Subiendo {pendientes.Count} puntos pendientes.");
             int count = 0;
+
             foreach (var rp in pendientes)
             {
                 try
                 {
                     if (rp.ServerID > 0)
                     {
-                        // UPDATE
                         const string upd = @"
-                        UPDATE TBL_ROCLAND_SECURITY_RONDINESPUNTOS
-                        SET Estado = @estado, HoraVisita = @hora,
-                            LatitudG = @lat, LongitudG = @lon,
-                            FotoPath = @foto,
-                            Sincronizado = 1, FechaModificacion = @fechaMod
-                        WHERE ID = @id";
+                            UPDATE TBL_ROCLAND_SECURITY_RONDINESPUNTOS
+                            SET Estado            = @estado,
+                                HoraVisita        = @hora,
+                                LatitudG          = @lat,
+                                LongitudG         = @lon,
+                                FotoPath          = @foto,
+                                Sincronizado      = 1,
+                                FechaModificacion = @fechaMod
+                            WHERE ID = @id";
                         using var cmd = new SqlCommand(upd, conn);
                         cmd.Parameters.AddWithValue("@id", rp.ServerID);
                         cmd.Parameters.AddWithValue("@estado", rp.Estado);
                         cmd.Parameters.AddWithValue("@hora", (object?)rp.HoraVisita ?? DBNull.Value);
                         cmd.Parameters.AddWithValue("@lat", (object?)rp.LatitudG ?? DBNull.Value);
                         cmd.Parameters.AddWithValue("@lon", (object?)rp.LongitudG ?? DBNull.Value);
-
-                        var fotoParam = cmd.Parameters.Add("@foto", System.Data.SqlDbType.VarBinary);
-                        if (rp.FotoPath != null && rp.FotoPath.Length > 0)
-                            fotoParam.Value = rp.FotoPath;
-                        else
-                            fotoParam.Value = DBNull.Value;
-
                         cmd.Parameters.AddWithValue("@fechaMod", rp.FechaModificacion);
+                        var fotoParam = cmd.Parameters.Add("@foto", System.Data.SqlDbType.VarBinary);
+                        fotoParam.Value = rp.FotoPath != null && rp.FotoPath.Length > 0
+                            ? (object)rp.FotoPath : DBNull.Value;
                         await cmd.ExecuteNonQueryAsync();
                     }
                     else
                     {
-                        // INSERT
                         const string ins = @"
                             INSERT INTO TBL_ROCLAND_SECURITY_RONDINESPUNTOS
                                 (RondinID, PuntoID, HoraVisita, Estado, LatitudG, LongitudG, FotoPath,
@@ -248,14 +292,10 @@ namespace RocLandSecurity.Services
                         cmd.Parameters.AddWithValue("@estado", rp.Estado);
                         cmd.Parameters.AddWithValue("@lat", (object?)rp.LatitudG ?? DBNull.Value);
                         cmd.Parameters.AddWithValue("@lon", (object?)rp.LongitudG ?? DBNull.Value);
-
-                        var fotoParam = cmd.Parameters.Add("@foto", System.Data.SqlDbType.VarBinary);
-                        if (rp.FotoPath != null && rp.FotoPath.Length > 0)
-                            fotoParam.Value = rp.FotoPath;
-                        else
-                            fotoParam.Value = DBNull.Value;
-
                         cmd.Parameters.AddWithValue("@fechaMod", rp.FechaModificacion);
+                        var fotoParam = cmd.Parameters.Add("@foto", System.Data.SqlDbType.VarBinary);
+                        fotoParam.Value = rp.FotoPath != null && rp.FotoPath.Length > 0
+                            ? (object)rp.FotoPath : DBNull.Value;
                         var serverID = (int)(await cmd.ExecuteScalarAsync() ?? 0);
                         rp.ServerID = serverID;
                         rp.Sincronizado = true;
@@ -266,14 +306,17 @@ namespace RocLandSecurity.Services
                 }
                 catch (Exception ex)
                 {
-                    System.Diagnostics.Debug.WriteLine($"Error subiendo punto {rp.LocalID}: {ex.Message}");
-                    System.Diagnostics.Debug.WriteLine($"Detalles: RondinID={rp.RondinID}, PuntoID={rp.PuntoID}, Estado={rp.Estado}, ServerID={rp.ServerID}, FotoPath={(rp.FotoPath != null ? rp.FotoPath.Length.ToString() : "null")}");
+                    System.Diagnostics.Debug.WriteLine(
+                        $"Error subiendo punto {rp.LocalID}: {ex.Message} | " +
+                        $"RondinID={rp.RondinID}, PuntoID={rp.PuntoID}, Estado={rp.Estado}");
                 }
             }
             return count;
         }
 
+        // ═══════════════════════════════════════════════════════════════
         // SUBIDA: incidencias creadas offline
+        // ═══════════════════════════════════════════════════════════════
 
         private async Task<int> SubirIncidenciasAsync(SqlConnection conn)
         {
@@ -285,12 +328,12 @@ namespace RocLandSecurity.Services
                 try
                 {
                     const string ins = @"
-                INSERT INTO TBL_ROCLAND_SECURITY_INCIDENCIAS
-                    (TurnoID, RondinID, PuntoID, GuardiaReportaID,
-                     Descripcion, FotoPath, FechaReporte, Estado, Sincronizado, FechaModificacion)
-                OUTPUT INSERTED.ID
-                VALUES (@turnoID, @rondinID, @puntoID, @guardiaID,
-                        @desc, @foto, @fecha, @estado, 1, @fechaMod)";
+                        INSERT INTO TBL_ROCLAND_SECURITY_INCIDENCIAS
+                            (TurnoID, RondinID, PuntoID, GuardiaReportaID,
+                             Descripcion, FotoPath, FechaReporte, Estado, Sincronizado, FechaModificacion)
+                        OUTPUT INSERTED.ID
+                        VALUES (@turnoID, @rondinID, @puntoID, @guardiaID,
+                                @desc, @foto, @fecha, @estado, 1, @fechaMod)";
 
                     using var cmd = new SqlCommand(ins, conn);
                     cmd.Parameters.AddWithValue("@turnoID", inc.TurnoID);
@@ -301,27 +344,22 @@ namespace RocLandSecurity.Services
                     cmd.Parameters.AddWithValue("@fecha", inc.FechaReporte);
                     cmd.Parameters.AddWithValue("@estado", inc.Estado);
                     cmd.Parameters.AddWithValue("@fechaMod", inc.FechaModificacion);
-
-                    // ── FotoPath ──────────────────────────────────────────────────
                     var fotoParam = cmd.Parameters.Add("@foto", System.Data.SqlDbType.VarBinary);
                     fotoParam.Value = inc.FotoPath != null && inc.FotoPath.Length > 0
-                        ? inc.FotoPath
-                        : DBNull.Value;
-                    // ─────────────────────────────────────────────────────────────
+                        ? (object)inc.FotoPath : DBNull.Value;
 
                     int serverID = (int)(await cmd.ExecuteScalarAsync() ?? 0);
                     await _local.MarcarIncidenciaSincronizadaAsync(inc.LocalID, serverID);
                     count++;
                 }
-                catch { /* Reintento en próximo ciclo */ }
+                catch { }
             }
             return count;
         }
 
+        // ═══════════════════════════════════════════════════════════════
         // CACHÉ DE USUARIO para login offline
-
-        /// Descarga y cachea las credenciales del usuario autenticado
-        /// para permitir login offline la próxima vez.
+        // ═══════════════════════════════════════════════════════════════
 
         public async Task CachearUsuarioAsync(SqlConnection conn, int usuarioID)
         {
@@ -348,7 +386,9 @@ namespace RocLandSecurity.Services
         }
     }
 
+    // ═══════════════════════════════════════════════════════════════
     // DTO de resultado de sincronización
+    // ═══════════════════════════════════════════════════════════════
 
     public class SyncResult
     {

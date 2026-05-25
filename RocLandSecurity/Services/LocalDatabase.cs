@@ -2,7 +2,6 @@ using SQLite;
 
 namespace RocLandSecurity.Services
 {
-
     /// Base de datos SQLite local en el dispositivo.
     /// Actúa como espejo offline de SQL Server.
     /// Persiste entre cierres de app, reinicios y modo avión.
@@ -36,8 +35,9 @@ namespace RocLandSecurity.Services
         public Task<List<TurnoLocal>> GetTurnosPendientesSyncAsync() =>
             Db.Table<TurnoLocal>().Where(t => !t.Sincronizado).ToListAsync();
 
-
+        // ═══════════════════════════════════════════════════════════════
         // INICIALIZACIÓN
+        // ═══════════════════════════════════════════════════════════════
 
         public async Task InitAsync()
         {
@@ -64,7 +64,9 @@ namespace RocLandSecurity.Services
             }
         }
 
+        // ═══════════════════════════════════════════════════════════════
         // USUARIOS — Login offline
+        // ═══════════════════════════════════════════════════════════════
 
         public async Task UpsertUsuarioAsync(UsuarioLocal u)
         {
@@ -72,19 +74,17 @@ namespace RocLandSecurity.Services
             await Db.InsertOrReplaceAsync(u);
         }
 
-
         public async Task<UsuarioLocal?> GetUsuarioByLoginAsync(string usuario, string hashContrasena)
         {
             string hashUp = hashContrasena.ToUpperInvariant();
             string hashLo = hashContrasena.ToLowerInvariant();
-            var corte = DateTime.Now.AddDays(-AppConfig.RetencionDatosSync); // 1 día
+            var corte = DateTime.Now.AddDays(-AppConfig.RetencionDatosSync);
 
             var u = await Db.Table<UsuarioLocal>()
               .Where(u => u.UsuarioLogin == usuario && u.Activo &&
                          (u.Contrasena == hashUp || u.Contrasena == hashLo))
               .FirstOrDefaultAsync();
 
-            // Si el caché es demasiado viejo, lo tratamos como no encontrado
             return (u != null && u.FechaCacheada >= corte) ? u : null;
         }
 
@@ -97,7 +97,9 @@ namespace RocLandSecurity.Services
             return (u != null && u.FechaCacheada >= corte) ? u : null;
         }
 
+        // ═══════════════════════════════════════════════════════════════
         // PUNTOS DE CONTROL — Catálogo offline
+        // ═══════════════════════════════════════════════════════════════
 
         public Task UpsertPuntoControlAsync(PuntoControlLocal p) =>
             Db.InsertOrReplaceAsync(p);
@@ -105,23 +107,86 @@ namespace RocLandSecurity.Services
         public Task<List<PuntoControlLocal>> GetPuntosControlAsync() =>
             Db.Table<PuntoControlLocal>().OrderBy(p => p.Orden).ToListAsync();
 
+        // ═══════════════════════════════════════════════════════════════
         // TURNOS
-
+        // ═══════════════════════════════════════════════════════════════
 
         public Task UpsertTurnoAsync(TurnoLocal t) =>
             Db.InsertOrReplaceAsync(t);
 
         public async Task<TurnoLocal?> GetTurnoActivoAsync(int guardiaID)
         {
-            // Traemos el turno Pendiente (0) o En Progreso (1) 
-            // sin importar su fecha de creación.
+            // ─────────────────────────────────────────────────────────
+            // FIX C: AUTO-FINALIZACIÓN LOCAL DE TURNOS VENCIDOS
+            //
+            // PROBLEMA: Si la app entra en modo offline (o simplemente lee
+            // primero del caché local), puede encontrar un TurnoLocal con
+            // Estado=1 del sábado cuya ventana de tiempo ya expiró el domingo
+            // por la mañana. Al no finalizarlo localmente, la capa
+            // OfflineDatabaseService piensa que sigue activo y bloquea la
+            // creación de un nuevo turno.
+            //
+            // SOLUCIÓN: Antes de devolver el turno, verificamos si su
+            // CalcularLimiteFinDeTurno ya pasó. Si pasó, lo finalizamos
+            // localmente (Estado=2, Sincronizado=false para que el
+            // SyncService lo suba cuando haya conexión) y devolvemos null,
+            // permitiendo que la UI ofrezca crear un nuevo turno.
+            //
+            // Esta lógica es idéntica a la de GuardiaDatabaseService para
+            // que ambas capas (online y offline) se comporten igual.
+            // ─────────────────────────────────────────────────────────
             var candidatos = await Db.Table<TurnoLocal>()
                 .Where(t => t.GuardiaID == guardiaID
                          && (t.Estado == 0 || t.Estado == 1))
                 .ToListAsync();
 
-            // Preferir el más reciente
-            return candidatos.OrderByDescending(t => t.Fecha).FirstOrDefault();
+            // Si hay más de un turno activo (inconsistencia), cerramos todos
+            // excepto el más reciente para limpiar el estado.
+            if (candidatos.Count > 1)
+            {
+                var ordenados = candidatos.OrderByDescending(t => t.Fecha).ToList();
+                // Cerramos todos los que no son el más reciente
+                foreach (var viejo in ordenados.Skip(1))
+                {
+                    viejo.Estado = 2;
+                    viejo.Sincronizado = false;
+                    await Db.UpdateAsync(viejo);
+                }
+                candidatos = new List<TurnoLocal> { ordenados[0] };
+            }
+
+            var turno = candidatos.FirstOrDefault();
+            if (turno == null) return null;
+
+            DateTime limiteFin = AppConfig.CalcularLimiteFinDeTurno(DateOnly.FromDateTime(turno.Fecha));
+            if (DateTime.Now >= limiteFin)
+            {
+                // Finalizar también los rondines pendientes de ese turno
+                var rondines = await GetRondinesPorTurnoAsync(turno.ID);
+                foreach (var r in rondines.Where(r => r.Estado < 2))
+                {
+                    r.Estado = 3; // Incompleto
+                    r.HoraFin = r.HoraFin ?? DateTime.Now;
+                    r.Sincronizado = false;
+                    r.FechaModificacion = DateTime.Now;
+                    await Db.UpdateAsync(r);
+
+                    // Marcar puntos pendientes como omitidos
+                    var puntos = await GetPuntosDeRondinAsync(r.ID);
+                    foreach (var p in puntos.Where(p => p.Estado == 0))
+                    {
+                        p.Estado = 2;
+                        p.Sincronizado = false;
+                        p.FechaModificacion = DateTime.Now;
+                        await Db.UpdateAsync(p);
+                    }
+                }
+
+                await FinalizarTurnoLocalAsync(turno.ID);
+                return null;
+            }
+
+            return turno;
         }
 
         public async Task FinalizarTurnoLocalAsync(int turnoID)
@@ -138,7 +203,9 @@ namespace RocLandSecurity.Services
         public Task<TurnoLocal?> GetTurnoPorIDAsync(int turnoID) =>
             Db.Table<TurnoLocal>().Where(t => t.ID == turnoID).FirstOrDefaultAsync();
 
+        // ═══════════════════════════════════════════════════════════════
         // RONDINES
+        // ═══════════════════════════════════════════════════════════════
 
         public Task UpsertRondinAsync(RondinLocal r) =>
             Db.InsertOrReplaceAsync(r);
@@ -155,12 +222,12 @@ namespace RocLandSecurity.Services
         public Task<List<RondinLocal>> GetRondinesPendientesSyncAsync() =>
             Db.Table<RondinLocal>().Where(r => !r.Sincronizado).ToListAsync();
 
+        // ═══════════════════════════════════════════════════════════════
         // PUNTOS DE RONDÍN
+        // ═══════════════════════════════════════════════════════════════
 
         public Task UpsertRondinPuntoAsync(RondinPuntoLocal rp)
         {
-            // Si LocalID == 0 es un registro nuevo: Insert (SQLite asigna el ID automático)
-            // Si LocalID > 0 ya existe: Replace
             return rp.LocalID == 0
                 ? Db.InsertAsync(rp)
                 : Db.InsertOrReplaceAsync(rp);
@@ -178,8 +245,6 @@ namespace RocLandSecurity.Services
               .FirstOrDefaultAsync();
 
         public Task<List<RondinPuntoLocal>> GetPuntosPendientesSyncAsync() =>
-            // Solo sincronizar puntos que el guardia modificó (escaneados o marcados omitido)
-            // Los puntos en Estado=0 (Pendiente sin escanear) ya existen en el servidor tal cual
             Db.Table<RondinPuntoLocal>().Where(rp => !rp.Sincronizado && rp.Estado > 0).ToListAsync();
 
         public Task<int> GetTotalPuntosModificadosPendientesAsync() =>
@@ -187,7 +252,9 @@ namespace RocLandSecurity.Services
               .Where(rp => !rp.Sincronizado && rp.Estado > 0)
               .CountAsync();
 
+        // ═══════════════════════════════════════════════════════════════
         // INCIDENCIAS
+        // ═══════════════════════════════════════════════════════════════
 
         public async Task<int> InsertIncidenciaAsync(IncidenciaLocal inc)
         {
@@ -211,7 +278,9 @@ namespace RocLandSecurity.Services
               .Where(i => i.TurnoID == turnoID && i.RondinID == null)
               .ToListAsync();
 
+        // ═══════════════════════════════════════════════════════════════
         // MARCADO DE SYNC
+        // ═══════════════════════════════════════════════════════════════
 
         public async Task MarcarRondinSincronizadoAsync(int rondinID)
         {
@@ -238,22 +307,29 @@ namespace RocLandSecurity.Services
             }
         }
 
-        // LIMPIEZA — Elimina registros sync de turnos > 7 días
+        // ═══════════════════════════════════════════════════════════════
+        // LIMPIEZA
+        // ═══════════════════════════════════════════════════════════════
 
         public async Task LimpiarDatosViejosAsync()
         {
+            // ─────────────────────────────────────────────────────────
+            // FIX D: LIMPIEZA SEGURA — Solo borramos turnos que estén
+            // Finalizados (Estado=2) Y con todos sus rondines sincronizados.
+            // Esto evita borrar un turno reciente que aún tiene datos
+            // pendientes de subir al servidor.
+            // ─────────────────────────────────────────────────────────
             var corte = DateTime.Today.AddDays(-AppConfig.RetencionDatosSync);
 
-            // Obtener IDs de turnos viejos sincronizados
             var turnosViejos = await Db.Table<TurnoLocal>()
-                .Where(t => t.Fecha < corte)
+                .Where(t => t.Fecha < corte && t.Estado == 2 && t.Sincronizado)
                 .ToListAsync();
 
             foreach (var turno in turnosViejos)
             {
                 var rondines = await GetRondinesPorTurnoAsync(turno.ID);
                 bool todosSinc = rondines.All(r => r.Sincronizado);
-                if (!todosSinc) continue; // No limpiar si hay pendientes
+                if (!todosSinc) continue;
 
                 foreach (var rondin in rondines)
                 {
@@ -276,7 +352,9 @@ namespace RocLandSecurity.Services
     }
 
 
+    // ═══════════════════════════════════════════════════════════════
     // MODELOS SQLITE (tablas locales)
+    // ═══════════════════════════════════════════════════════════════
 
     [Table("Usuarios")]
     public class UsuarioLocal
@@ -310,8 +388,8 @@ namespace RocLandSecurity.Services
         public DateTime Fecha { get; set; }
         public TimeSpan HoraInicio { get; set; }
         public TimeSpan HoraFin { get; set; }
-        public byte Estado { get; set; }   // 0-3
-        public bool Sincronizado { get; set; } = true; // Los turnos siempre se crean online
+        public byte Estado { get; set; }   // 0-2
+        public bool Sincronizado { get; set; } = true;
     }
 
     [Table("Rondines")]
@@ -324,8 +402,8 @@ namespace RocLandSecurity.Services
         public DateTime? HoraInicio { get; set; }
         public DateTime? HoraFin { get; set; }
         public int Estado { get; set; }   // 0-4
-        public int PuntosTotal { get; set; }   // se rellena al cargar puntos
-        public int PuntosVisitados { get; set; }   // se actualiza al escanear
+        public int PuntosTotal { get; set; }
+        public int PuntosVisitados { get; set; }
         public bool Sincronizado { get; set; } = false;
         public DateTime FechaModificacion { get; set; } = DateTime.Now;
     }
@@ -334,7 +412,7 @@ namespace RocLandSecurity.Services
     public class RondinPuntoLocal
     {
         [PrimaryKey, AutoIncrement] public int LocalID { get; set; }
-        public int ServerID { get; set; }   // ID en SQL Server (0 si no sincronizado)
+        public int ServerID { get; set; }
         public int RondinID { get; set; }
         public int PuntoID { get; set; }
         public string NombrePunto { get; set; } = string.Empty;
@@ -353,7 +431,7 @@ namespace RocLandSecurity.Services
     public class IncidenciaLocal
     {
         [PrimaryKey, AutoIncrement] public int LocalID { get; set; }
-        public int ServerID { get; set; }   // ID en SQL Server (0 si no sync)
+        public int ServerID { get; set; }
         public int TurnoID { get; set; }
         public int? RondinID { get; set; }
         public int? PuntoID { get; set; }

@@ -105,27 +105,55 @@ namespace RocLandSecurity.Views.Shared
 
         private async void OnForzarSyncClicked(object sender, EventArgs e)
         {
+            // 1. Diagnóstico ANTES de intentar sincronizar (Radiografía)
+            string detallePendientes = await _sync.ObtenerDetallePendientesAsync();
+
+            // Mostramos la alerta de diagnóstico
+            bool proceder = await DisplayAlert(
+                "Diagnóstico Offline (Antes)",
+                detallePendientes + "\n\n¿Deseas enviar estos datos al servidor ahora?",
+                "Sí, Sincronizar",
+                "Cancelar");
+
+            // Si el usuario (tú en la prueba) cancela, no hacemos nada
+            if (!proceder) return;
+
+            // 2. Bloquear UI mientras trabaja
             BtnForzarSync.IsEnabled = false;
             BtnForzarSync.Text = "Sincronizando...";
             LblEstadoSync.Text = "Enviando datos al servidor...";
 
+            // 3. Ejecutar la sincronización
             var result = await _sync.SincronizarAsync(SyncReason.Manual);
 
+            // Actualizamos las etiquetas de UI de tu página
             await ActualizarEstadoSyncAsync();
+
+            // 4. Diagnóstico DESPUÉS de sincronizar (para ver si quedó algo atorado)
+            string detalleDespues = await _sync.ObtenerDetallePendientesAsync();
 
             if (result.Exitoso)
             {
                 string msg = result.TienePendientes
                     ? $"Sync OK — {result.RondinesSincronizados}R · {result.PuntosSincronizados}P · {result.IncidenciasSincronizadas}I"
                     : "Todo ya estaba sincronizado";
+
                 LblUltimaSync.Text = $"Última sync: {DateTime.Now:HH:mm:ss}";
+
+                // Mantenemos tu Toast original para la experiencia visual fluida
                 await ShowToastAsync(msg, isError: false);
+
+                // Y agregamos el Pop-up de prueba para que leas qué pasó internamente
+                await DisplayAlert("Resultado del Servidor", $"{msg}\n\nEstado actual del teléfono:\n{detalleDespues}", "OK");
             }
             else if (!result.Omitido)
             {
+                // Hubo un error (ej. sigo en modo avión)
                 await ShowToastAsync($"Error de sync: {result.Error}");
+                await DisplayAlert("Sin Conexión / Error", $"Error: {result.Error}\n\nLos datos siguen seguros en SQLite:\n{detalleDespues}", "OK");
             }
 
+            // 5. Restaurar estado de los botones
             BtnForzarSync.IsEnabled = true;
             BtnForzarSync.Text = "Forzar sincronización ahora";
         }
@@ -178,6 +206,8 @@ namespace RocLandSecurity.Views.Shared
             _session.CerrarSesion();
             await ((Shell.Current as AppShell)?.LogoutAsync() ?? Task.CompletedTask);
         }
+
+
 
         // ─────────────────────────────────────────────────────────────────
         // TOAST
