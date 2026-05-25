@@ -177,28 +177,31 @@ namespace RocLandSecurity.Services
             TimeSpan inicio = TimeSpan.Parse(AppConfig.HoraInicioTurno);
             TimeSpan fin = TimeSpan.Parse(AppConfig.HoraFinTurno);
 
+            // Configura aquí tu tolerancia. 
+            // Para ser estricto a las 19:00 usa TimeSpan.Zero
+            // Para permitir ingresar 15 minutos antes usa TimeSpan.FromMinutes(15)
+            TimeSpan toleranciaPreIngreso = TimeSpan.Zero;
+
             if (!AppConfig.TurnoCruzaMedianoche)
             {
                 // Turno de día (ej. 08:00-18:00)
                 if (horaActual > fin)
                     throw new InvalidOperationException(
                         $"El turno finalizó a las {AppConfig.HoraFinTurno} hrs. Ya no puedes iniciarlo.");
-                if (horaActual < inicio.Subtract(TimeSpan.FromHours(2)))
+
+                if (horaActual < inicio.Subtract(toleranciaPreIngreso))
                     throw new InvalidOperationException(
                         $"Aún es muy temprano. El turno de hoy inicia a las {AppConfig.HoraInicioTurno} hrs.");
             }
             else
             {
-                // Turno nocturno (ej. 19:00-07:00): el período muerto es fin < hora < inicio-2h
-                // Es decir: de 07:01 a 16:59. Fuera de ese rango, SÍ se puede crear.
-                TimeSpan preIngreso = inicio.Subtract(TimeSpan.FromHours(2)); // 17:00
+                // Turno nocturno (ej. 19:00-07:00)
+                TimeSpan preIngreso = inicio.Subtract(toleranciaPreIngreso);
+
                 if (horaActual > fin && horaActual < preIngreso)
                     throw new InvalidOperationException(
                         $"Fuera de horario. El turno nocturno inicia a las {AppConfig.HoraInicioTurno} hrs.");
             }
-
-            if (!await _connectivity.CheckServerAsync())
-                throw new InvalidOperationException("Se requiere conexión para iniciar un nuevo turno.");
 
             // ─────────────────────────────────────────────────────────
             // FIX F: SINCRONIZAR PRIMERO, LUEGO CREAR
