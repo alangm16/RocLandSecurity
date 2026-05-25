@@ -384,6 +384,34 @@ namespace RocLandSecurity.Services
                 });
             }
         }
+
+        public async Task<string> ObtenerDetallePendientesAsync()
+        {
+            var turnos = await _local.GetTurnosPendientesSyncAsync();
+            var rondines = await _local.GetRondinesPendientesSyncAsync();
+            var puntos = await _local.GetPuntosPendientesSyncAsync();
+            var incidencias = await _local.GetIncidenciasPendientesSyncAsync();
+
+            if (turnos.Count == 0 && rondines.Count == 0 && puntos.Count == 0 && incidencias.Count == 0)
+                return "✅ Todo está sincronizado. No hay datos huérfanos en el celular.";
+
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("⚠️ DATOS ATRAPADOS EN EL CELULAR (SQLite):\n");
+
+            if (turnos.Count > 0)
+                sb.AppendLine($"🕒 Turnos ({turnos.Count}): IDs locales {string.Join(", ", turnos.Select(t => t.ID))}");
+
+            if (rondines.Count > 0)
+                sb.AppendLine($"🚶 Rondines ({rondines.Count}): IDs {string.Join(", ", rondines.Select(r => r.ID))}");
+
+            if (puntos.Count > 0)
+                sb.AppendLine($"📍 Puntos ({puntos.Count}): IDs locales {string.Join(", ", puntos.Select(p => p.LocalID))}");
+
+            if (incidencias.Count > 0)
+                sb.AppendLine($"🚨 Incidencias ({incidencias.Count}): IDs locales {string.Join(", ", incidencias.Select(i => i.LocalID))}");
+
+            return sb.ToString();
+        }
     }
 
     // ═══════════════════════════════════════════════════════════════
